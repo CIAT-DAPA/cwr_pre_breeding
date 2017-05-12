@@ -6,21 +6,19 @@
 
 options(warn = -1); options(scipen = 999); g <- gc(reset = T); rm(list = ls())
 
-suppressMessages(if(!require(raster)){install.packages('raster'); library(raster)} else {library(raster)})
-
 # loop by crop
 
 # Step 1: Crop area identification
-source("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Scripts/Datos_presencia_potato.R")
-crop_area_id(crop = "potato")
+source("C:/Users/bmora/Documents/Repositories/cwr_pre_breeding/01_cwr_id_occurrence_data.R")
+occ_data <- crop_area_id(crop = "potato"); rm(crop_area_id)
 
 # Step 2: Crop cycle identification by pixel
-source("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Scripts/Ciclo_cultivo_potato.R")
-crop_cycle_id(crop = "potato", sys_type = "rainfed") # rainfed, irrigated
+source("C:/Users/bmora/Documents/Repositories/cwr_pre_breeding/02_cwr_id_crop_growing_cycle.R")
+occ_data <-crop_cycle_id(crop = "potato", occ_data = occ_data);rm(crop_cycle_id)
 
 # Step 3: Extract current climate data
 source("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Scripts/extractCurrentClimate.R")
-current_climate(crop = "potato")
+current_climate(crop = "potato", occ_data = occ_data)
 
 # Step 4: Index calculation for current data
 source("")
