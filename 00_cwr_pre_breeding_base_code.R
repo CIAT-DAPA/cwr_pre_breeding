@@ -10,11 +10,11 @@ options(warn = -1); options(scipen = 999); g <- gc(reset = T); rm(list = ls())
 
 # Step 1: Crop area identification
 source("C:/Users/bmora/Documents/Repositories/cwr_pre_breeding/01_cwr_id_occurrence_data.R")
-occ_data <- crop_area_id(crop = "potato"); rm(crop_area_id)
+system.time(exp = {occ_data <- crop_area_id(crop = "potato"); rm(crop_area_id)})
 
 # Step 2: Crop cycle identification by pixel
 source("C:/Users/bmora/Documents/Repositories/cwr_pre_breeding/02_cwr_id_crop_growing_cycle.R")
-occ_data <-crop_cycle_id(crop = "potato", occ_data = occ_data);rm(crop_cycle_id)
+system.time(exp = {occ_data <-crop_cycle_id(crop = "potato", occ_data = occ_data);rm(crop_cycle_id)})
 
 # Step 3: Extract current climate data
 source("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Scripts/extractCurrentClimate.R")
