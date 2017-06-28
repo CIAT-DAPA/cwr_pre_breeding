@@ -1,1 +1,3 @@
-# cwr_pre_breeding
+# CWR - pre-breeding characterising testing environments
+
+All code is here.
