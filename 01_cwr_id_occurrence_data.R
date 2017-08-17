@@ -29,13 +29,18 @@ suppressMessages(if(!require(factoextra)){install.packages('factoextra'); librar
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=#
 #   Load Monfread and Mapspam   #
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=#
-crop<- "potato"
+
 crop_area_id <- function(crop){
   
+  OSys <- Sys.info(); OSys <- OSys[names(OSys)=="sysname"]
+  if(OSys == "Linux"){ root <- "/mnt/workspace_cluster_9" } else {
+    if(OSys == "Windows"){ root <- "//dapadfs/Workspace_cluster_9" }
+  }; rm(OSys)
+  
   # Load area information by crop
-  mapspam <- raster::stack(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/database/", crop, "_mapspam.nc", sep = ""))
-  monfreda <- raster::stack(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/database/",crop, "_monfreda.nc", sep = ""))
-  occ_data <- read.csv(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/database/", crop, "_genesys.csv", sep = ""))
+  mapspam <- raster::stack(paste(root, "/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/database/", crop, "_mapspam.nc", sep = ""))
+  monfreda <- raster::stack(paste(root, "/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/database/",crop, "_monfreda.nc", sep = ""))
+  occ_data <- read.csv(paste(root, "/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/database/", crop, "_genesys.csv", sep = ""))
   crop_info <- list(mapspam, monfreda, occ_data); names(crop_info) <- c("mapspam", "monfreda", "occ_data")
   rm(mapspam, monfreda, occ_data)
   
@@ -55,23 +60,24 @@ crop_area_id <- function(crop){
   names(tmpStack) <- c("MapSPAM", "Monfreda", "MapSPAM_Monfreda")
   
   # Make the plot
-  if(!file.exists(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/plots/occurrence_data_", crop, "_maps.png", sep = ""))){
+  if(!file.exists(paste(root, "/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/plots/occurrence_data_", crop, "_maps.png", sep = ""))){
     detach(package:factoextra)
     detach(package:ggplot2)
     
     # Load shapefile worldwide
     data(wrld_simpl)
     
-    trellis.device(device="png", filename= paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/plots/occurrence_data_", crop, "_maps.png", sep = ""), width = 3000, height = 2000, units = "px", res = 300)
-    mapTheme <- rasterTheme(region=brewer.pal(3,"BrBG")) ## gusta 2
-    p <- levelplot(tmpStack, margin=F, par.settings=mapTheme) + layer(sp.polygons(wrld_simpl, lwd=0.1, col = 'gray')) #c('palegreen', 'indianred1')
+    trellis.device(device="png", filename= paste(root, "/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/plots/occurrence_data_", crop, "_maps.png", sep = ""), width = 3000, height = 2000, units = "px", res = 300)
+    mapTheme <- rasterTheme(region = brewer.pal(3,"BrBG")) ## gusta 2
+    p <- levelplot(tmpStack, margin = F, par.settings = mapTheme) + layer(sp.polygons(wrld_simpl, lwd = 0.1, col = 'gray')) #c('palegreen', 'indianred1')
     print(p)
     dev.off()
     rm(p, wrld_simpl)
+    
   }
   
   # Determine agreement of each raster file with Genesys database
-  if(!file.exists(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/plots/occurrence_data_", crop, "_agreement.png", sep = ""))){
+  if(!file.exists(paste(root, "/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/plots/occurrence_data_", crop, "_agreement.png", sep = ""))){
     agreeMapspam <- raster::extract(x = tmpStack[[1]], y = crop_info$occ_data[,c("longitude","latitude")])
     agreeMapspam <- sum(agreeMapspam, na.rm = T)/nrow(crop_info$occ_data)
     agreeMonfreda <- raster::extract(x = tmpStack[[2]],y = crop_info$occ_data[,c("longitude","latitude")])
@@ -82,25 +88,24 @@ crop_area_id <- function(crop){
     agree <- data.frame(Dataset = factor(x = c("MapSPAM", "Monfreda", "MapSPAM & Monfreda"), levels = c("MapSPAM", "Monfreda", "MapSPAM & Monfreda")), Percentage = c(agreeMapspam, agreeMonfreda, agreeSum))
     rm(agreeMapspam, agreeMonfreda, agreeSum)
     
-    if(!dir.exists(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/plots", sep = ""))){
-      dir.create(path = paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/plots", sep = ""), recursive = T)
+    if(!dir.exists(paste(root, "/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/plots", sep = ""))){
+      dir.create(path = paste(root, "/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/plots", sep = ""), recursive = T)
     }
     gg <- agree %>% ggplot(aes(x=Dataset, y=Percentage * 100)) + geom_bar(stat="identity", fill="steelblue") + theme_bw()
     gg <- gg + ylab("Percentage (%)") + ggtitle(label = "Agreement between Genesys and raster sources")
     gg <- gg + scale_y_continuous(limits = c(0, 100))
-    ggsave(filename = paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/plots/occurrence_data_", crop, "_agreement.png", sep = ""), plot = gg, width = 5, height = 5.5, units = "in")
+    ggsave(filename = paste(root, "/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/plots/occurrence_data_", crop, "_agreement.png", sep = ""), plot = gg, width = 5, height = 5.5, units = "in")
     rm(gg, agree, tmpStack)
   }
   
   # Just for now, we will use Monfreda (This is a test) Modeling tools are required
-  tmpStack$MapSPAM_Monfreda[which(tmpStack$MapSPAM_Monfreda[]==2)] <-1
+  tmpStack$MapSPAM_Monfreda[which(tmpStack$MapSPAM_Monfreda[]==2)] <- 1
   data_matrix <- as.data.frame(rasterToPoints(tmpStack$MapSPAM_Monfreda))
   cellID <- cellFromXY(object =tmpStack$MapSPAM_Monfreda, xy = data_matrix[,c("x", "y")])
   data_matrix <- cbind(cellID, data_matrix[,c("x", "y")]); colnames(data_matrix) <- c("cellID", "lon", "lat")
-  occ_data <-data_matrix
-  write.csv(paste(occ_data,"//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/",str_to_title(crop),"/database/occ_data_sum.csv"))
+  occ_data <- data_matrix
+  write.csv(occ_data, paste(root, "/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/database/occ_data_sum.csv"))
   
-                
   return(data_matrix)
   
 }
