@@ -17,19 +17,19 @@ suppressMessages(if(!require(data.table)){install.packages('data.table'); librar
 suppressMessages(if(!require(miscTools)){install.packages('miscTools'); library(miscTools)} else {library(miscTools)})
 suppressMessages(if(!require(rgdal)){install.packages('rgdal'); library(rgdal)} else {library(rgdal)})
 suppressMessages(if(!require(foreach)){install.packages('foreach'); library(foreach)} else {library(foreach)})
-# suppressMessages(if(!require(doMC)){install.packages('doMC'); library(doMC)} else {library(doMC)})
 suppressMessages(if(!require(mgcv)){install.packages('mgcv'); library(mgcv)} else {library(mgcv)})
 suppressMessages(if(!require(rasterVis)){install.packages('rasterVis'); library(rasterVis)} else {library(rasterVis)})
 suppressMessages(if(!require(stringr)){install.packages('stringr'); library(stringr)} else {library(stringr)})
 suppressMessages(if(!require(tidyverse)){install.packages('tidyverse'); library(tidyverse)} else {library(tidyverse)})
 suppressMessages(if(!require(mapdata)){install.packages('mapdata'); library(mapdata)} else {library(mapdata)})
 suppressMessages(if(!require(ggplot2)){install.packages('ggplot2'); library(ggplot2)} else {library(ggplot2)})
+suppressMessages(if(!require(factoextra)){install.packages('factoextra'); library(factoextra)} else {library(factoextra)})
 
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=#
 #   Load Monfread and Mapspam   #
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=#
-
+crop<- "potato"
 crop_area_id <- function(crop){
   
   # Load area information by crop
@@ -56,6 +56,7 @@ crop_area_id <- function(crop){
   
   # Make the plot
   if(!file.exists(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/plots/occurrence_data_", crop, "_maps.png", sep = ""))){
+    detach(package:factoextra)
     detach(package:ggplot2)
     
     # Load shapefile worldwide
@@ -92,10 +93,14 @@ crop_area_id <- function(crop){
   }
   
   # Just for now, we will use Monfreda (This is a test) Modeling tools are required
-  data_matrix <- as.data.frame(rasterToPoints(crop_info$monfreda))
-  cellID <- cellFromXY(object = crop_info$monfreda, xy = data_matrix[,c("x", "y")])
+  tmpStack$MapSPAM_Monfreda[which(tmpStack$MapSPAM_Monfreda[]==2)] <-1
+  data_matrix <- as.data.frame(rasterToPoints(tmpStack$MapSPAM_Monfreda))
+  cellID <- cellFromXY(object =tmpStack$MapSPAM_Monfreda, xy = data_matrix[,c("x", "y")])
   data_matrix <- cbind(cellID, data_matrix[,c("x", "y")]); colnames(data_matrix) <- c("cellID", "lon", "lat")
+  occ_data <-data_matrix
+  write.csv(paste(occ_data,"//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/",str_to_title(crop),"/database/occ_data_sum.csv"))
   
+                
   return(data_matrix)
   
 }
