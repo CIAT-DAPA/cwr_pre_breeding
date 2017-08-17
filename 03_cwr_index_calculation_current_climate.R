@@ -115,7 +115,6 @@ prec2.1 <- prec2[which(!is.na(prec2$cropID)),]
 plot(rasterSum)
 
 
-
 # Planting dates
 planting_rf_ggcmi <- raster::brick(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/GGCMI-data/Potatoes_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "planting day")
 planting_rf_ggcmi <- planting_rf_ggcmi[[1]]
