@@ -104,7 +104,7 @@ crop_area_id <- function(crop){
   cellID <- cellFromXY(object =tmpStack$MapSPAM_Monfreda, xy = data_matrix[,c("x", "y")])
   data_matrix <- cbind(cellID, data_matrix[,c("x", "y")]); colnames(data_matrix) <- c("cellID", "lon", "lat")
   occ_data <- data_matrix
-  write.csv(occ_data, paste(root, "/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/database/occ_data_sum.csv"))
+  write.csv(occ_data, paste(root, "/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/database/occ_data_sum.csv", sep = ""), row.names = F)
   
   return(data_matrix)
   

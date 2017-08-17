@@ -2,7 +2,10 @@
 # Authors: B. Mora & H. Achicanoy
 # CIAT, 2017
 
-## Bias-correction & downscaling for future data
+## Extract current climate data (just once)
+# source("extractCurrentClimate.R") # Already done. Take care!!!
+
+## Bias-correction & downscaling for future data (just once)
 
 options(warn = -1); options(scipen = 999); g <- gc(reset = T); rm(list = ls())
 
@@ -15,13 +18,9 @@ system.time(exp = {occ_data <- crop_area_id(crop = crop); rm(crop_area_id)})
 
 # Step 2: Crop cycle identification by pixel
 source("02_cwr_id_crop_growing_cycle.R")
-system.time(exp = {occ_data <-crop_cycle_id(crop = "potato", occ_data = occ_data);rm(crop_cycle_id)})
+system.time(exp = {occ_data <- crop_cycle_id(crop = crop, occ_data = occ_data); rm(crop_cycle_id)})
 
-# Step 3: Extract current climate data
-source("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Scripts/extractCurrentClimate.R")
-current_climate(crop = "potato", occ_data = occ_data)
-
-# Step 4: Index calculation for current data
+# Step 3: Index calculation for current data
 source("")
 
 # Step 5: Extract future climate

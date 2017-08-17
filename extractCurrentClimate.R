@@ -75,7 +75,7 @@ saveRDS(climate_variable_rotated, file=paste(counDir, '/rsrad.rds', sep=''))
 
 
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= #
-#                       Construcción de Tablas                                        #
+#                       Construcci?n de Tablas                                        #
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= #
 #=-=-=-=#
 #  TMIN #
@@ -319,7 +319,7 @@ system.time(data_day <- mclapply(1:length(year), function(i){
 for(i in 1:365){ clase<-class(pre_year24[[i]]);cat("object",clase," ",i,"\n");Sys.sleep(0.2)}
 
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=#
-#proceso debe hacerse para cada año por separado# 
+#proceso debe hacerse para cada a?o por separado# 
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=#
 year1<- data_day[[1]]
 year1<- raster::unstack(year1)
@@ -340,7 +340,7 @@ system.time(tabla1<-tabla[which(rowSums(is.na(tabla))!=365),])
 saveRDS(tabla1,"//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Results/input_tables/chirps/tabla1.rds")
 
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=#
-#Despues de hacer esto para cada año por separado #
+#Despues de hacer esto para cada a?o por separado #
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=#
 #=-=-=-=-=-=-=-=-=-=-=-#
 #      quito los -9999
@@ -430,9 +430,3 @@ saveRDS(tabla_final, "//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Results/inp
 #=-=-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-==-=-==--=-=-==-==-=-=-=-===-=-=-=-=-=-=-=-=-=-=-#
 #=-=-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-==-=-==--=-=-==-==-=-=-=-===-=-=-=-=-=-=-=-=-=-=-#
 #=-=-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-==-=-==--=-=-==-==-=-=-=-===-=-=-=-=-=-=-=-=-=-=-#
-
-
-
-
-
-

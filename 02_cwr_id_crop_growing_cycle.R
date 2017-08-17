@@ -30,23 +30,29 @@ suppressMessages(if(!require(readr)){install.packages('readr'); library(readr)} 
 suppressMessages(if(!require(dbscan)){install.packages('dbscan'); library(dbscan)} else {library(dbscan)})
 suppressMessages(if(!require(zoom)){install.packages('zoom'); library(zoom)} else {library(zoom)})
 
+OSys <- Sys.info(); OSys <- OSys[names(OSys)=="sysname"]
+if(OSys == "Linux"){ root <- "/mnt/workspace_cluster_9" } else {
+  if(OSys == "Windows"){ root <- "//dapadfs/Workspace_cluster_9" }
+}; rm(OSys)
 
-crop <- "Bean"
-occ_data <- read.csv("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/Bean/database/occ_data_sum.csv")
+if(!exists("occ_data")){
+  occ_data <- read.csv(paste0(root, "/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/database/occ_data_sum.csv"))
+}
+
 crop_cycle_id <- function(crop, occ_data){
   
-  crop_list <- tolower(list.files(path = "//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data", full.names = F))
-  ggcmi_lst <- c("Pulses", NA, "Barley", NA, rep("Pulses", 3), NA, "Millet", rep("Pulses", 2), "Millet", "Pulses", "Potatoes", "Rice", "Sorghum", "Sunflower", NA, "Wheat")
+  crop_list <- tolower(list.files(path = paste0(root, "/CWR_pre-breeding/Input_data/presence_data"), full.names = F))
+  ggcmi_lst <- c("Pulses", NA, "Barley", rep("Pulses", 4), NA, "Millet", rep("Pulses", 2), "Millet", "Pulses", "Potatoes", "Rice", "Sorghum", "Sunflower", NA, "Wheat")
   if(crop %in% crop_list){
     crop_ggcmi <- ggcmi_lst[which(crop_list == crop)]
   }
   
   # Planting dates
-  planting_rf_ggcmi <- raster::brick(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/GGCMI-data/", crop_ggcmi, "_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "planting day")
+  planting_rf_ggcmi <- raster::brick(paste(root, "/CWR_pre-breeding/Input_data/GGCMI-data/", crop_ggcmi, "_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "planting day")
   planting_rf_ggcmi <- planting_rf_ggcmi[[1]]
   
   # Harversting dates
-  harvest_rf_ggcmi <- raster::brick(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/GGCMI-data/", crop_ggcmi, "_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "harvest day")
+  harvest_rf_ggcmi <- raster::brick(paste(root, "/CWR_pre-breeding/Input_data/GGCMI-data/", crop_ggcmi, "_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "harvest day")
   harvest_rf_ggcmi <- harvest_rf_ggcmi[[1]]
   
   planting <- raster::extract(x = planting_rf_ggcmi, y = occ_data[,c("lon", "lat")])
@@ -55,7 +61,7 @@ crop_cycle_id <- function(crop, occ_data){
   occ_data$planting[which(occ_data$planting == "-99")] <- NA
   occ_data$harvest[which(occ_data$harvest == "-99")] <- NA
    
-  if(!file.exists(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/precense_data/",crop_ggcmi,"/plots/summary_of_missing_data_/",crop_ggcmi," .png"))){
+  if(!file.exists(paste(root, "/CWR_pre-breeding/Input_data/precense_data/",crop_ggcmi,"/plots/summary_of_missing_data_/",crop_ggcmi," .png"))){
     ## Proporcion de NA 
    total <-  length(occ_data$planting)
    x <- sum(is.na(occ_data$planting) & !is.na(occ_data$harvest))/total
@@ -67,7 +73,7 @@ crop_cycle_id <- function(crop, occ_data){
   gg <- gg + labs(title="Summary of Missing Data", y="Proportion of Na", x= "Variables")
   gg
   rm(x,y,z,total,df,gg)
-  } 
+  }
  
   # Assuming complete data we will continue with the process
   occ_data <- occ_data[complete.cases(occ_data),]; rownames(occ_data) <- 1:nrow(occ_data)
@@ -78,7 +84,6 @@ crop_cycle_id <- function(crop, occ_data){
   occ_data$condition[which((occ_data$harvest - occ_data$planting)> 0)] <- "One year"
   occ_data$condition[which((occ_data$harvest - occ_data$planting)< 0)] <- "Two years"
   
-
-  occ_data1 <- occ_data[,c("lon","lat","planting","harvest","cycle_length")]
-  write.csv(occ_data, file("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/Potato/database/occ_data_full.csv"))
+  write.csv(occ_data, file(paste0(root, "/CWR_pre-breeding/Input_data/presence_data/", str_to_title(crop), "/database/occ_data_full.csv")))
+  
 }
