@@ -21,7 +21,7 @@ source("02_cwr_id_crop_growing_cycle.R")
 system.time(exp = {occ_data <- crop_cycle_id(crop = crop, occ_data = occ_data); rm(crop_cycle_id)})
 
 # Step 3: Index calculation for current data
-source("")
+source("03_cwr_index_calculation_current_climate.R")
 
 # Step 5: Extract future climate
 source("")
