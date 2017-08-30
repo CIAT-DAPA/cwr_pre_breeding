@@ -19,7 +19,6 @@ suppressMessages(if(!require(rasterVis)){install.packages('rasterVis'); library(
 suppressMessages(if(!require(stringr)){install.packages('stringr'); library(stringr)} else {library(stringr)})
 suppressMessages(if(!require(tidyverse)){install.packages('tidyverse'); library(tidyverse)} else {library(tidyverse)})
 suppressMessages(if(!require(mapdata)){install.packages('mapdata'); library(mapdata)} else {library(mapdata)})
-suppressMessages(if(!require(ggplot2)){install.packages('ggplot2'); library(ggplot2)} else {library(ggplot2)})
 suppressMessages(if(!require(FactoMineR)){install.packages('FactoMineR'); library(FactoMineR)} else {library(FactoMineR)})
 suppressMessages(if(!require(FactoClass)){install.packages('FactoClass'); library(FactoClass)} else {library(FactoClass)})
 suppressMessages(if(!require(ade4)){install.packages('ade4'); library(ade4)} else {library(ade4)})
@@ -27,20 +26,19 @@ suppressMessages(if(!require(xtable)){install.packages('xtable'); library(xtable
 suppressMessages(if(!require(ggdendro)){install.packages('ggdendro'); library(ggdendro)} else {library(ggdendro)})
 suppressMessages(if(!require(compiler)){install.packages('compiler'); library(compiler)} else {library(compiler)})
 suppressMessages(if(!require(ggthemes)){install.packages('ggthemes'); library(ggthemes)} else {library(ggthemes)})
+suppressMessages(if(!require(dtwclust)){install.packages('dtwclust'); library(dtwclust)} else {library(dtwclust)})
+suppressMessages(if(!require(cluster)){install.packages('cluster'); library(cluster)} else {library(cluster)})
 
 OSys <- Sys.info(); OSys <- OSys[names(OSys)=="sysname"]
 if(OSys == "Linux"){
   root <- "/mnt/workspace_cluster_9"
-  base <- raster::stack("/mnt/data_cluster_5/cropdata/agmerra/daily/nc-files/srad_daily_ts_agmerra_1980_2010.nc")
+  base <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/AgMerra_template.RDS"))
 } else {
   if(OSys == "Windows"){
     root <- "//dapadfs/Workspace_cluster_9"
-    base <- raster::stack("//dapadfs/data_cluster_5/cropdata/agmerra/daily/nc-files/srad_daily_ts_agmerra_1980_2010.nc")
+    base <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/AgMerra_template.RDS"))
   }
 }; rm(OSys)
-
-base <- base[[1]]
-base <- rotate(base)
 
 # Precipitation data (from CHIRPS)
 prec <- readRDS(paste0(root, '/CWR_pre-breeding/Results/input_tables/chirps/table_final.rds'))
@@ -49,6 +47,7 @@ prec <- data.frame(cellID = cellID, prec); rm(cellID)
 names(prec)[2:3] <- c("lon", "lat")
 names(prec)[4:ncol(prec)] <- as.character(gsub(pattern = "chirps.v2.0.", replacement = "", x = names(prec)[4:ncol(prec)]))
 names(prec)[4:ncol(prec)] <- gsub(pattern = "\\.", replacement = "-", x = names(prec)[4:ncol(prec)])
+prec[,4:ncol(prec)] <- prec[,4:ncol(prec)] * .1
 
 # Solar radiation, tmin and tmax data (from AgMerra)
 agList <- c("srad", "tmax", "tmin")
@@ -73,46 +72,38 @@ countries <- rgdal::readOGR(dsn = paste0(root, "/CWR_pre-breeding/Input_data/wor
 proj4string(countries) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 countries$COUNTRY <- iconv(countries$COUNTRY, from = "UTF-8", to = "latin1")
 central_america_colombia <- countries[countries@data$COUNTRY == "Colombia" | countries@data$UNREG1 == "Central America" | countries@data$UNREG1 == "Caribbean",]
-over_res <- sp::over(SpatialPoints(coords = data.frame(lon = prec$lon, lat = prec$lat), proj4string = CRS(projargs = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")), as(central_america_colombia, "SpatialPolygons"))
-prec$bean_coordinates <- over_res; rm(over_res)
-prec <- prec[!is.na(prec$bean_coordinates),]; rownames(prec) <- 1:nrow(prec)
+# Filter coordinates within Central America, Caribbean and Colombia for all variables
+varList <- c("prec", "srad", "tmax", "tmin")
+for(i in 1:length(varList)){
+  eval(parse(text = paste0("over_res <- sp::over(SpatialPoints(coords = data.frame(lon = ", varList[i], "$lon, lat = ", varList[i], "$lat), proj4string = CRS('+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0')), as(", varList[i], "_CA_col, 'SpatialPolygons'")))
+  eval(parse(text = paste0(varList[i], "$bean_coordinates <- over_res; rm(over_res)")))
+  eval(parse(text = paste0(varList[i], " <- ", varList[i], "[!is.na(", varList[i], "$bean_coordinates),]; rownames(", varList[i], ") <- 1:nrow(", varList[i], ")")))
+}; rm(i, varList)
 
-saveRDS(prec, paste0(root, "/CWR_pre-breeding/Results/input_tables/chirps/prec_central_america_colombia.rds"))
-saveRDS(srad, paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_srad/srad_new.rds"))
-saveRDS(tmax, paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_tmax/tmax_new.rds"))
-saveRDS(tmin, paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_tmin/tmin_new.rds"))
+saveRDS(prec, paste0(root, "/CWR_pre-breeding/Results/input_tables/chirps/prec_filtered.rds"))
+saveRDS(srad, paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_srad/srad_filtered.rds"))
+saveRDS(tmax, paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_tmax/tmax_filtered.rds"))
+saveRDS(tmin, paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_tmin/tmin_filtered.rds"))
 
-rm(eli,eli1,prec,ggcmi_data)
-
-
-
-
-
-
-prec <- readRDS("D:/prec_CACol.rds")
+prec <- readRDS(paste0(root, "/CWR_pre-breeding/Results/input_tables/chirps/prec_filtered.rds"))
 prec$bean_coordinates <- NULL
 
 # Planting dates
-planting_rf_ggcmi <- raster::brick(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/GGCMI-data/Pulses_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "planting day")
+planting_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Pulses_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "planting day")
 planting_rf_ggcmi <- planting_rf_ggcmi[[1]]
 # Harversting dates
-harvest_rf_ggcmi <- raster::brick(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/GGCMI-data/Pulses_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "harvest day")
+harvest_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Pulses_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "harvest day")
 harvest_rf_ggcmi <- harvest_rf_ggcmi[[1]]
 
 prec$Planting <- raster::extract(x = planting_rf_ggcmi, y = prec[,c("lon", "lat")]); rm(planting_rf_ggcmi)
 prec$Harvest  <- raster::extract(x = harvest_rf_ggcmi, y = prec[,c("lon", "lat")]); rm(harvest_rf_ggcmi)
 prec$Duration <- ifelse(test = prec$Planting < prec$Harvest, yes = "One year", no = "Two years")
 
+# Just for verifying
 prec[1:5,(ncol(prec)-5):ncol(prec)]
-
 table(prec$Duration)
 
-saveRDS(object = prec, file = "D:/precipitation.rds")
-
-prec <- readRDS("precipitation.rds")
-
-TEST <- lapply(1:nrow(prec), function(i){
-  
+calc_indexes <- function(i){
   duration <- prec$Duration[i]
   start <- prec$Planting[i]
   end <- prec$Harvest[i]
@@ -123,6 +114,8 @@ TEST <- lapply(1:nrow(prec), function(i){
     
     calculations <- function(time.serie, start, end){
       
+      suppressMessages(library(tidyverse))
+
       X <- time.serie
       X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
       X$Year <- lubridate::year(as.Date(X$Date))
@@ -168,125 +161,66 @@ TEST <- lapply(1:nrow(prec), function(i){
   }
   
   return(results)
-  
+
+}
+calc_indexes <- cmpfun(calc_indexes)
+
+suppressMessages(library(doParallel))
+suppressMessages(library(snow))
+workers <- makeCluster(10, type = "SOCK")
+registerDoParallel(workers)
+
+prec_indexes <- foreach(i = 1:nrow(prec)) %dopar% calc_indexes(i = i)
+prec_indexes <- do.call(rbind, prec_indexes)
+
+prec_indexes %>% ggplot() + theme_tufte() + geom_line(aes(x = Year, y = Value, group = cellID, colour = Variable)) + facet_wrap(~Variable)
+
+# Calculate similarities
+sourceCpp("fastPdist.cpp") # Pairwise Euclidean distance function in C++
+
+# Just doing calcs for Total rain
+prec_indexes <- readRDS(paste0(root, "/CWR_pre-breeding/Results/prec_indices_CACol.RDS"))
+totrain <- prec_indexes %>% filter(Variable == "TOTRAIN")
+totrain$Variable <- NULL
+
+totrain <- totrain %>% spread(key = Year, value = Value)
+rownames(totrain) <- totrain$cellID; totrain$cellID <- NULL
+
+pdist_result <- fastPdist2(Ar = as.matrix((totrain)), Br = as.matrix(totrain[1592,])) # Here we select the pre-breeding site
+results <- data.frame(cellID = rownames(totrain), pdist = as.numeric(pdist_result))
+
+base[] <- NA
+base[][results$cellID %>% as.character %>% as.numeric] <- results$pdist
+
+base <- raster::crop(x = base, y = extent(central_america_colombia)) # Crop according to the study region
+
+library(rasterVis)
+levelplot(base, par.settings = RdBuTheme)
+
+# DTW
+library(dtwclust)
+
+# Reinterpolate series to equal length and normalize
+series <- lapply(1:nrow(totrain), function(i){
+  return(totrain[i,] %>% as.numeric)
 })
+series <- zscore(series)
 
-TEST <- do.call(rbind, TEST)
-
-TEST %>% ggplot() + theme_tufte() + geom_line(aes(x = Year, y = Value, group = cellID, colour = Variable)) + facet_wrap(~Variable)
-
-
-
-
-
-
-
+# Using DTW with help of lower bounds and PAM centroids
+pc.dtwlb <- tsclust(series, k = 20L, 
+                    distance = "dtw_lb", centroid = "pam", 
+                    seed = 3247, trace = TRUE,
+                    control = partitional_control(pam.precompute = FALSE),
+                    args = tsclust_args(dist = list(window.size = 20L)))
+plot(pc.dtwlb)
 
 
+require(cluster)
+hc.diana <- tsclust(series, type = "h", k = 20L,
+                    distance = "L2", trace = TRUE,
+                    control = hierarchical_control(method = diana))
 
+plot(hc.diana, type = "sc")
+hc.diana
 
-
-
-
-
-
-
-
-
-prec <- prec[which(prec$cellID %in% srad$cellID),]; rownames(prec) <- 1:nrow(prec)
-
-prec1 <- intersect(prec[,c("lon","lat")] , df[,c("x","y")])
-mapspam   <- raster::stack("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/Potato/database/potato_mapspam.nc")
-monfreda  <- raster::stack("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/presence_data/Potato/database/potato_monfreda.nc")
-
-#mapspam
-mapspam[which(mapspam[] <= 0)] <- NA
-mapspam[which(mapspam[] > 0)] <- 1
-
-#monfreda
-monfreda[which(monfreda[] <= 0)] <- NA
-monfreda[which(monfreda[] > 0)] <- 1
-
-##superpongo los rasters
-tmpStack <- raster::stack(mapspam,monfreda)
-# sumo los rasters
-rasterSum <- sum(tmpStack, na.rm = T)
-rasterSum[rasterSum[] == 0] <- NA
-rasterSum[rasterSum[] == 2] <- 1
-
-
-prec2 <- prec
-prec2$cropID <- raster::extract(x = rasterSum, y = prec2[,c("lon", "lat")])
-prec2.1 <- prec2[which(!is.na(prec2$cropID)),]
-plot(rasterSum)
-
-
-# Planting dates
-planting_rf_ggcmi <- raster::brick(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/GGCMI-data/Potatoes_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "planting day")
-planting_rf_ggcmi <- planting_rf_ggcmi[[1]]
-# Harversting dates
-harvest_rf_ggcmi <- raster::brick(paste("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/GGCMI-data/Potatoes_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "harvest day")
-harvest_rf_ggcmi <- harvest_rf_ggcmi[[1]]
-
-
-prec2.1$planting_day <- raster::extract(x = planting_rf_ggcmi, y = prec2.1[,c("lon", "lat")])
-tail(prec2.1[(10955:10961)])
-prec2.1$harvest_day <- raster::extract(x = harvest_rf_ggcmi, y = prec2.1[,c("lon", "lat")])
-prec2.1$cycle_length <- abs(prec2.1$harvest_day - prec2.1$planting_day)
-
-rm(coor_prec,coor_prec1, mtcars, first, second,prec2,df,mapspam,monfreda,rasterSum,tmpStack,b )
-head(prec2.1[,c(1:3,(ncol(prec2.1)-5):ncol(prec2.1))])
-
-prec2.1$condition  <- NA
-prec2.1$condition[which((prec2.1$harvest - prec2.1$planting)> 0)] <- "One year"
-prec2.1$condition[which((prec2.1$harvest - prec2.1$planting)< 0)] <- "Two years"
-
-hist(prec2.1$cycle_length)
-##### important
-prec2.1$planting_day[which(prec2.1$planting_day == "-99")] <- NA
-prec2.1$harvest_day[which(prec2.1$harvest_day == "-99")] <- NA
-prec2.1 <- prec2.1[which(!is.na(prec2.1$planting_day)),]
-prec2.1 <- prec2.1[which(!is.na(prec2.1$harvest_day)),]
-##chevere
-#prec2.1$planting <- NULL
-
-
-
-prec2.1 <- prec2.1[,c("cellID", "lon", "lat", "planting_day", "harvest_day", "cycle_length", "condition", colnames(prec2.1)[8:(ncol(prec2.1)-5)])]
-prec2.1_long <- prec2.1 %>% gather(key = Date, value = Value, -(cellID:condition))
-
-two_years <- prec2.1_long[which(prec2.1_long$condition == "Two years"),]
-saveRDS(two_years, "//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Results/two_years.rds")
-
-one_year <- prec2.1_long[which(prec2.1_long$condition == "One year"),]
-# yearList <- 1981:2010
-# lapply(yearList, function(x){
-#   yearTable <- one_year[which(lubridate::year(one_year$Date) == x),]
-#   saveRDS(yearTable, paste0("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Results/one_year_", x,".rds"))
-# })
-
-prec2.1_long <- prec2.1_long %>% arrange(cellID, Date)
-prec2.1_long$yday <- lubridate::yday(as.Date(prec2.1_long$Date))
-prec2.1_long$Year <- lubridate::year(as.Date(prec2.1_long$Date))
-prec2.1_long <- prec2.1_long %>% group_by(cellID, Year) %>% filter(yday >= planting_day & yday <= harvest_day)
-
-
-c(seq(planting_day:365),seq(1:harvest_day))
-
-
-cell1_prec2.1_long <- prec2.1_long %>% filter(cellID == 455760)
-cell1_prec2.1_long <- cell1_prec2.1_long %>% arrange(cellID, Date)
-cell1_prec2.1_long$yday <- lubridate::yday(as.Date(cell1_prec2.1_long$Date))
-cell1_prec2.1_long$Year <- lubridate::year(as.Date(cell1_prec2.1_long$Date))
-cell1_prec2.1_long <- cell1_prec2.1_long %>% group_by(cellID, Year) %>% filter(yday >= planting_day & yday <= harvest_day)
-
-
-totrain <- cell1_prec2.1_long %>% dplyr::group_by(cellID, Year) %>% dplyr::arrange(Date) %>% summarise(TOTRAIN = sum(Value))
-totrain$id_key <- paste(totrain$id_hogar, "-", totrain$Period, sep = "")
-
-gg <- totrain %>% ggplot() + theme_tufte() + geom_line(aes(x = Year, y = TOTRAIN, group = id_key, colour = Period)) + facet_wrap(~municipio) + scale_x_continuous(breaks = 2006:2017) + theme(axis.text.x = element_text(angle = 45))
-ggsave(filename = "C:/Users/haachicanoy/Documents/CIAT/Asesorias/Lisset_Perez/Agroclimas/new_indices/totalrainFrom2006.png", plot = gg)
-rm(tmax,tmin,srad,harvest_rf_ggcmi,planting_rf_ggcmi)
-
-
-
+plot(hc.diana[[which.min(cvis["VI", ])]])
