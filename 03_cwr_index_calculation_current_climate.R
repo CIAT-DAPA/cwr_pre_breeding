@@ -115,6 +115,7 @@ calc_indexes <- function(i){
     calculations <- function(time.serie, start, end){
       
       suppressMessages(library(tidyverse))
+      suppressMessages(library(compiler))
 
       X <- time.serie
       X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
@@ -160,6 +161,7 @@ calc_indexes <- function(i){
     
   }
   
+  cat(paste0("Processed pixel:", i, "\n"))
   return(results)
 
 }
