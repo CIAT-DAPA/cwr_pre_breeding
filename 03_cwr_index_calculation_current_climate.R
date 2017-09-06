@@ -104,16 +104,17 @@ prec[1:5,(ncol(prec)-5):ncol(prec)]
 table(prec$Duration)
 
 calc_indexes <- function(i){
+  
+  # Parameters
   duration <- prec$Duration[i]
   start <- prec$Planting[i]
   end <- prec$Harvest[i]
   
+  # Just one pixel
   time.serie <- prec[i, 1:(ncol(prec)-3)]
   
   if(duration == "One year"){
     
-    calculations <- function(time.serie, start, end){
-      
       suppressMessages(library(tidyverse))
       suppressMessages(library(compiler))
 
@@ -154,25 +155,92 @@ calc_indexes <- function(i){
       p_95 <- p_95 %>% as.data.frame
       names(p_95)[2] <- "Value"; p_95$Variable <- "P_95"
       
-      return(data.frame(cellID = unique(X$cellID), rbind(totrain, cdd, p5d, p_95)))
-      
-    }
-    results <- calculations(time.serie = time.serie, start = start, end = end)
+    results <- data.frame(cellID = unique(X$cellID), rbind(totrain, cdd, p5d, p_95))
     
+  } else {
+    results <- data.frame(cellID = unique(X$cellID), Year = NA, Value = NA, Variable = NA)
   }
   
   cat(paste0("Processed pixel:", i, "\n"))
   return(results)
 
 }
-calc_indexes <- cmpfun(calc_indexes)
+calc_indexes <- compiler::cmpfun(calc_indexes)
 
 suppressMessages(library(doParallel))
 suppressMessages(library(snow))
 workers <- makeCluster(10, type = "SOCK")
 registerDoParallel(workers)
 
-prec_indexes <- foreach(i = 1:nrow(prec)) %dopar% calc_indexes(i = i)
+prec_indexes <- foreach(i = 1:nrow(prec)) %dopar% {
+  print(paste0("Processing pixel: ", i, "\n"))
+  calc_indexes(i = i)
+}
+
+
+
+prec_indexes <- foreach(i = 1:nrow(prec)) %dopar% {
+  
+  cat(paste0("Processing pixel: ", i, "\n"))
+  
+  duration <- prec$Duration[i]
+  start <- prec$Planting[i]
+  end <- prec$Harvest[i]
+  
+  time.serie <- prec[i, 1:(ncol(prec)-3)]
+  
+  if(duration == "One year"){
+    
+    suppressMessages(library(tidyverse))
+    suppressMessages(library(compiler))
+    calculations <- function(time.serie, start, end){
+      
+      X <- time.serie
+      X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
+      X$Year <- lubridate::year(as.Date(X$Date))
+      X$Yday <- lubridate::yday(as.Date(X$Date))
+      X <- X %>% group_by(Year) %>% dplyr::filter(Yday >= start & Yday <= end)
+      
+      # Total precipitation
+      totrain <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(TOTRAIN = sum(Value))
+      totrain <- totrain %>% as.data.frame
+      names(totrain)[2] <- "Value"; totrain$Variable <- "TOTRAIN"
+      
+      # Drought spell: Maximum number of consecutive dry days (i.e. with precipitation < 1 mm day-1)
+      dr_stress <- function(PREC, p_thresh = 1){
+        runs <- rle(PREC < p_thresh)
+        cons_days <- max(runs$lengths[runs$values==1], na.rm=TRUE)
+        return(cons_days)
+      }
+      dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
+      cdd <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(CDD = dr_stressCMP(Value, p_thresh = 1))
+      cdd <- cdd %>% as.data.frame
+      names(cdd)[2] <- "Value"; cdd$Variable <- "CDD"
+      
+      # Flooding: Maximum 5-day running average precipitation
+      run_avg <- function(x){
+        z <- caTools::runmean(x, k = 5, endrule = 'NA')
+        z <- max(z, na.rm = TRUE)
+        return(z)
+      }
+      p5d <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% dplyr::summarise(P5D = run_avg(x = Value))
+      p5d <- p5d %>% as.data.frame
+      names(p5d)[2] <- "Value"; p5d$Variable <- "P5D"
+      
+      # Erosion risk: 95th percentile of daily precipitation
+      p_95 <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% dplyr::summarise(P_95 = quantile(Value, probs = .95, na.rm = TRUE))
+      p_95 <- p_95 %>% as.data.frame
+      names(p_95)[2] <- "Value"; p_95$Variable <- "P_95"
+      
+      return(data.frame(cellID = unique(X$cellID), rbind(totrain, cdd, p5d, p_95)))
+      
+    }
+    
+    calculations <- cmpfun(calculations)
+    results <- calculations(time.serie = time.serie, start = start, end = end)
+    
+  }
+}
 prec_indexes <- do.call(rbind, prec_indexes)
 
 prec_indexes %>% ggplot() + theme_tufte() + geom_line(aes(x = Year, y = Value, group = cellID, colour = Variable)) + facet_wrap(~Variable)
