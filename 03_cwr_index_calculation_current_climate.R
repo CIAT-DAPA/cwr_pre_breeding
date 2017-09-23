@@ -42,12 +42,6 @@ if(OSys == "Linux"){
 
 # Precipitation data (from CHIRPS)
 prec <- readRDS(paste0(root, '/CWR_pre-breeding/Results/input_tables/chirps/table_final.rds'))
-cellID <- cellFromXY(base, xy = prec[,1:2])
-prec <- data.frame(cellID = cellID, prec); rm(cellID)
-names(prec)[2:3] <- c("lon", "lat")
-names(prec)[4:ncol(prec)] <- as.character(gsub(pattern = "chirps.v2.0.", replacement = "", x = names(prec)[4:ncol(prec)]))
-names(prec)[4:ncol(prec)] <- gsub(pattern = "\\.", replacement = "-", x = names(prec)[4:ncol(prec)])
-prec[,4:ncol(prec)] <- prec[,4:ncol(prec)] * .1
 
 # Solar radiation, tmin and tmax data (from AgMerra)
 agList <- c("srad", "tmax", "tmin")
@@ -71,21 +65,33 @@ rm(base, agList)
 countries <- rgdal::readOGR(dsn = paste0(root, "/CWR_pre-breeding/Input_data/world_shape"), "all_countries")
 proj4string(countries) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 countries$COUNTRY <- iconv(countries$COUNTRY, from = "UTF-8", to = "latin1")
-central_america_colombia <- countries[countries@data$COUNTRY == "Colombia" | countries@data$UNREG1 == "Central America" | countries@data$UNREG1 == "Caribbean",]
+central_america_colombia <- countries[countries@data$COUNTRY == "Colombia" |
+                                        countries@data$COUNTRY == "Venezuela" |
+                                        countries@data$COUNTRY == "Ecuador"|
+                                        countries@data$COUNTRY == "Peru" |
+                                        countries@data$COUNTRY == "Bolivia" |
+                                        countries@data$COUNTRY == "Argentina" |
+                                        countries@data$COUNTRY == "Chile" |
+                                        countries@data$COUNTRY == "Brazil" |
+                                        countries@data$UNREG1 == "Central America" |
+                                        countries@data$UNREG1 == "Caribbean",]
 # Filter coordinates within Central America, Caribbean and Colombia for all variables
 varList <- c("prec", "srad", "tmax", "tmin")
 for(i in 1:length(varList)){
-  eval(parse(text = paste0("over_res <- sp::over(SpatialPoints(coords = data.frame(lon = ", varList[i], "$lon, lat = ", varList[i], "$lat), proj4string = CRS('+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0')), as(", varList[i], "_CA_col, 'SpatialPolygons'")))
+  eval(parse(text = paste0("over_res <- sp::over(SpatialPoints(coords = data.frame(lon = ", varList[i], "$lon, lat = ", varList[i], "$lat), proj4string = CRS('+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0')), as(central_america_colombia, 'SpatialPolygons'))")))
   eval(parse(text = paste0(varList[i], "$bean_coordinates <- over_res; rm(over_res)")))
   eval(parse(text = paste0(varList[i], " <- ", varList[i], "[!is.na(", varList[i], "$bean_coordinates),]; rownames(", varList[i], ") <- 1:nrow(", varList[i], ")")))
 }; rm(i, varList)
 
-saveRDS(prec, paste0(root, "/CWR_pre-breeding/Results/input_tables/chirps/prec_filtered.rds"))
+saveRDS(prec, paste0(root, "/CWR_pre-breeding/Results/input_tables/chirps/prec_filtered.rds"), compress = TRUE)
 saveRDS(srad, paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_srad/srad_filtered.rds"))
 saveRDS(tmax, paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_tmax/tmax_filtered.rds"))
 saveRDS(tmin, paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_tmin/tmin_filtered.rds"))
 
-prec <- readRDS(paste0(root, "/CWR_pre-breeding/Results/input_tables/chirps/prec_filtered.rds"))
+library(readr)
+read_rds()
+system.time(prec <- readRDS(paste0(root, "/CWR_pre-breeding/Results/input_tables/chirps/prec_filtered.rds")))
+# system.time(prec <- read_rds(paste0(root, "/CWR_pre-breeding/Results/input_tables/chirps/prec_filtered.rds")))
 prec$bean_coordinates <- NULL
 
 # Planting dates
@@ -103,8 +109,9 @@ prec$Duration <- ifelse(test = prec$Planting < prec$Harvest, yes = "One year", n
 prec[1:5,(ncol(prec)-5):ncol(prec)]
 table(prec$Duration)
 
-calc_indexes <- function(i){
-  
+library(parallel)
+system.time( prec_indexes <- mclapply(1:nrow(prec), function(i){
+  cat(paste0("Processed pixel:", i, "\n"))
   # Parameters
   duration <- prec$Duration[i]
   start <- prec$Planting[i]
@@ -115,134 +122,98 @@ calc_indexes <- function(i){
   
   if(duration == "One year"){
     
-      suppressMessages(library(tidyverse))
-      suppressMessages(library(compiler))
-
-      X <- time.serie
-      X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
-      X$Year <- lubridate::year(as.Date(X$Date))
-      X$Yday <- lubridate::yday(as.Date(X$Date))
-      X <- X %>% group_by(Year) %>% dplyr::filter(Yday >= start & Yday <= end)
-      
-      # Total precipitation
-      totrain <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(TOTRAIN = sum(Value))
-      totrain <- totrain %>% as.data.frame
-      names(totrain)[2] <- "Value"; totrain$Variable <- "TOTRAIN"
-      
-      # Drought spell: Maximum number of consecutive dry days (i.e. with precipitation < 1 mm day-1)
-      dr_stress <- function(PREC, p_thresh = 1){
-        runs <- rle(PREC < p_thresh)
-        cons_days <- max(runs$lengths[runs$values==1], na.rm=TRUE)
-        return(cons_days)
-      }
-      dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-      cdd <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(CDD = dr_stressCMP(Value, p_thresh = 1))
-      cdd <- cdd %>% as.data.frame
-      names(cdd)[2] <- "Value"; cdd$Variable <- "CDD"
-      
-      # Flooding: Maximum 5-day running average precipitation
-      run_avg <- function(x){
-        z <- caTools::runmean(x, k = 5, endrule = 'NA')
-        z <- max(z, na.rm = TRUE)
-        return(z)
-      }
-      p5d <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(P5D = run_avg(x = Value))
-      p5d <- p5d %>% as.data.frame
-      names(p5d)[2] <- "Value"; p5d$Variable <- "P5D"
-      
-      # Erosion risk: 95th percentile of daily precipitation
-      p_95 <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(P_95 = quantile(Value, probs = .95, na.rm = TRUE))
-      p_95 <- p_95 %>% as.data.frame
-      names(p_95)[2] <- "Value"; p_95$Variable <- "P_95"
-      
-    results <- data.frame(cellID = unique(X$cellID), rbind(totrain, cdd, p5d, p_95))
-    
-  } else {
-    results <- data.frame(cellID = unique(X$cellID), Year = NA, Value = NA, Variable = NA)
-  }
-  
-  cat(paste0("Processed pixel:", i, "\n"))
-  return(results)
-
-}
-calc_indexes <- compiler::cmpfun(calc_indexes)
-
-suppressMessages(library(doParallel))
-suppressMessages(library(snow))
-workers <- makeCluster(10, type = "SOCK")
-registerDoParallel(workers)
-
-prec_indexes <- foreach(i = 1:nrow(prec)) %dopar% {
-  print(paste0("Processing pixel: ", i, "\n"))
-  calc_indexes(i = i)
-}
-
-
-
-prec_indexes <- foreach(i = 1:nrow(prec)) %dopar% {
-  
-  cat(paste0("Processing pixel: ", i, "\n"))
-  
-  duration <- prec$Duration[i]
-  start <- prec$Planting[i]
-  end <- prec$Harvest[i]
-  
-  time.serie <- prec[i, 1:(ncol(prec)-3)]
-  
-  if(duration == "One year"){
-    
     suppressMessages(library(tidyverse))
     suppressMessages(library(compiler))
-    calculations <- function(time.serie, start, end){
-      
-      X <- time.serie
-      X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
-      X$Year <- lubridate::year(as.Date(X$Date))
-      X$Yday <- lubridate::yday(as.Date(X$Date))
-      X <- X %>% group_by(Year) %>% dplyr::filter(Yday >= start & Yday <= end)
-      
-      # Total precipitation
-      totrain <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(TOTRAIN = sum(Value))
-      totrain <- totrain %>% as.data.frame
-      names(totrain)[2] <- "Value"; totrain$Variable <- "TOTRAIN"
-      
-      # Drought spell: Maximum number of consecutive dry days (i.e. with precipitation < 1 mm day-1)
-      dr_stress <- function(PREC, p_thresh = 1){
-        runs <- rle(PREC < p_thresh)
-        cons_days <- max(runs$lengths[runs$values==1], na.rm=TRUE)
-        return(cons_days)
-      }
-      dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-      cdd <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(CDD = dr_stressCMP(Value, p_thresh = 1))
-      cdd <- cdd %>% as.data.frame
-      names(cdd)[2] <- "Value"; cdd$Variable <- "CDD"
-      
-      # Flooding: Maximum 5-day running average precipitation
-      run_avg <- function(x){
-        z <- caTools::runmean(x, k = 5, endrule = 'NA')
-        z <- max(z, na.rm = TRUE)
-        return(z)
-      }
-      p5d <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% dplyr::summarise(P5D = run_avg(x = Value))
-      p5d <- p5d %>% as.data.frame
-      names(p5d)[2] <- "Value"; p5d$Variable <- "P5D"
-      
-      # Erosion risk: 95th percentile of daily precipitation
-      p_95 <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% dplyr::summarise(P_95 = quantile(Value, probs = .95, na.rm = TRUE))
-      p_95 <- p_95 %>% as.data.frame
-      names(p_95)[2] <- "Value"; p_95$Variable <- "P_95"
-      
-      return(data.frame(cellID = unique(X$cellID), rbind(totrain, cdd, p5d, p_95)))
-      
-    }
     
-    calculations <- cmpfun(calculations)
-    results <- calculations(time.serie = time.serie, start = start, end = end)
+    X <- time.serie
+    X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
+    X$Year <- lubridate::year(as.Date(X$Date))
+    X$Yday <- lubridate::yday(as.Date(X$Date))
+    X <- X %>% group_by(Year) %>% dplyr::filter(Yday >= start & Yday <= end)
+    
+    # Total precipitation
+    totrain <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(TOTRAIN = sum(Value))
+    totrain <- totrain %>% as.data.frame
+    names(totrain)[2] <- "Value"; totrain$Variable <- "TOTRAIN"
+    
+    # Drought spell: Maximum number of consecutive dry days (i.e. with precipitation < 1 mm day-1)
+    dr_stress <- function(PREC, p_thresh = 1){
+      runs <- rle(PREC < p_thresh)
+      cons_days <- max(runs$lengths[runs$values==1], na.rm=TRUE)
+      return(cons_days)
+    }
+    dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
+    cdd <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(CDD = dr_stressCMP(Value, p_thresh = 1))
+    cdd <- cdd %>% as.data.frame
+    names(cdd)[2] <- "Value"; cdd$Variable <- "CDD"
+    
+    # # Flooding: Maximum 5-day running average precipitation
+    run_avg <- function(x){
+      z <- caTools::runmean(x, k = 5, endrule = 'NA')
+      z <- max(z, na.rm = TRUE)
+      return(z)
+    }
+    p5d <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(P5D = run_avg(x = Value))
+    p5d <- p5d %>% as.data.frame
+    names(p5d)[2] <- "Value"; p5d$Variable <- "P5D"
+    
+    # Erosion risk: 95th percentile of daily precipitation
+    p_95 <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(P_95 = quantile(Value, probs = .95, na.rm = TRUE))
+    p_95 <- p_95 %>% as.data.frame
+    names(p_95)[2] <- "Value"; p_95$Variable <- "P_95"
+    
+    results <- data.frame(cellID = unique(X$cellID), rbind(totrain, cdd,p5d, p_95))
+    
+  } else {
+    
+    X <- time.serie
+    X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
+    X$Year <- lubridate::year(as.Date(X$Date))
+    X$Yday <- lubridate::yday(as.Date(X$Date))
+    X <- X %>% filter(Yday %in% c(start:365, 1:end))
+    X <- X[-(1:(end)),]
+    X <- X[-((nrow(X)-(365-start)): nrow(X)),]
+    
+    # Total precipitation
+    totrain <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(TOTRAIN = sum(Value))
+    totrain <- totrain %>% as.data.frame
+    names(totrain)[2] <- "Value"; totrain$Variable <- "TOTRAIN"
+    
+    # Drought spell: Maximum number of consecutive dry days (i.e. with precipitation < 1 mm day-1)
+    dr_stress <- function(PREC, p_thresh = 1){
+      runs <- rle(PREC < p_thresh)
+      cons_days <- max(runs$lengths[runs$values==1], na.rm=TRUE)
+      return(cons_days)
+    }
+    dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
+    cdd <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(CDD = dr_stressCMP(Value, p_thresh = 1))
+    cdd <- cdd %>% as.data.frame
+    names(cdd)[2] <- "Value"; cdd$Variable <- "CDD"
+    
+    # Flooding: Maximum 5-day running average precipitation
+    run_avg <- function(x){
+      z <- caTools::runmean(x, k = 5, endrule = 'NA')
+      z <- max(z, na.rm = TRUE)
+      return(z)
+    }
+    p5d <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(P5D = run_avg(x = Value))
+    p5d <- p5d %>% as.data.frame
+    names(p5d)[2] <- "Value"; p5d$Variable <- "P5D"
+    
+    # Erosion risk: 95th percentile of daily precipitation
+    p_95 <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(P_95 = quantile(Value, probs = .95, na.rm = TRUE))
+    p_95 <- p_95 %>% as.data.frame
+    names(p_95)[2] <- "Value"; p_95$Variable <- "P_95"
+    
+    results <- data.frame(cellID = unique(X$cellID), rbind(totrain, cdd, p5d, p_95))
     
   }
-}
-prec_indexes <- do.call(rbind, prec_indexes)
+  return(results)
+  
+}, mc.cores = 20, mc.preschedule = F))
 
+
+prec_indexes <- do.call(rbind, prec_indexes)
 prec_indexes %>% ggplot() + theme_tufte() + geom_line(aes(x = Year, y = Value, group = cellID, colour = Variable)) + facet_wrap(~Variable)
 
 # Calculate similarities
