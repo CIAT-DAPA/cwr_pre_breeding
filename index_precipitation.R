@@ -370,7 +370,7 @@ system.time (for(i in 1:nrow(tabla2)){
 suppressMessages(if(!require(raster)){install.packages('raster'); library(raster)} else {library(raster)})
 suppressMessages(if(!require(ncdf4)){install.packages('ncdf4'); library(ncdf4)} else {library(ncdf4)})
 suppressMessages(if(!require(maptools)){install.packages('maptools'); library(maptools)} else {library(maptools)})
-üsuppressMessages(if(!require(ff)){install.packages('ff'); library(ff)} else {library(ff)})
+?suppressMessages(if(!require(ff)){install.packages('ff'); library(ff)} else {library(ff)})
 suppressMessages(if(!require(data.table)){install.packages('data.table'); library(data.table)} else {library(data.table)})
 suppressMessages(if(!require(miscTools)){install.packages('miscTools'); library(miscTools)} else {library(miscTools)})
 suppressMessages(if(!require(rgdal)){install.packages('rgdal'); library(rgdal)} else {library(rgdal)})
@@ -444,7 +444,7 @@ cellIdentified <- cellFromXY(base, xy= c(-76.356751, 3.504854)) ## Coordenada a 
 cor<- which(rownames(indexes) == cellIdentified)
 tabla2[is.na(tabla2)] <- 0
 
-cellID <- c (cellFromXY(base, cbind(x=fil$lon, y= fil$lat)))
+cellID <- c(cellFromXY(base, cbind(x=fil$lon, y= fil$lat)))
 y <- match(cellID,tabla2$cellID)
 y1 <-na.omit(y)
 tab <- tabla2[y1,]
@@ -457,11 +457,11 @@ system.time (for(i in 1:nrow(tabla2)){
   dissMat[i, 2] <- TSclust::diss.DTWARP(x = as.numeric(tabla2[i, -1]), y = as.numeric(tabla2[cor, -1]))
   dissMat[i, 3] <- TSclust::diss.CORT(x = as.numeric(tabla2[i, -1]), y = as.numeric(tabla2[cor, -1]), k = 2, deltamethod = "Euclid")
 }); rm(i)
+dissMat <- as.data.frame(dissMat)
 #dissMat[i, 3] <- TSclust::diss.FRECHET(x = as.numeric(tabla2[i, -1]), y = as.numeric(tabla2[cor, -1]))
 colnames(dissMat) <- c("Eucl", "DTWarp", "CORT")
 require(tidyr)
-tdist <- data.frame(cellID = tabla2$cellID, EUCLI = as.numeric(dissMat), DTW = as.numeric(dissMat), 
-                    CORT = as.numeric(dissMat))
+tdist <- data.frame(cellID = tabla2$cellID, dissMat)
 saveRDS(tdist, paste0( root, "/CWR_pre-breeding/Results/input_tables/chirps/tdist_america.rds"))
 ####################################################################################
 
@@ -473,52 +473,79 @@ america <- countries[countries@data$CONTINENT == "South America"|
                        countries@data$CONTINENT =="North America"|
                        countries@data$UNREG1 =="Central America",]
 
-
-countries <- rgdal::readOGR(dsn = paste0(root, "/CWR_pre-breeding/Input_data/world_shape"), "all_countries")
-proj4string(countries) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-countries$COUNTRY <- iconv(countries$COUNTRY, from = "UTF-8", to = "latin1")
-america <- countries[countries@data$CONTINENT == "South America"|
-                       countries@data$COUNTRY =="United States"|
-                       countries@data$UNREG1 =="Central America",]
-
-
-###########################################################################
-
-#countries <- rgdal::readOGR(dsn = paste0(root, "/CWR_pre-breeding/Input_data/world_shape"), "all_countries")
-#proj4string(countries) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-#countries$COUNTRY <- iconv(countries$COUNTRY, from = "UTF-8", to = "latin1")
-#central_america_colombia <- countries[countries@data$COUNTRY == "Colombia"|
-#  countries@data$COUNTRY == "Venezuela"|
-# countries@data$COUNTRY == "Ecuador"|
-# countries@data$COUNTRY == "Peru"|
-# countries@data$COUNTRY == "Bolivia"|
-#  countries@data$COUNTRY == "Argentina"|
-#  countries@data$COUNTRY == "Chile"|
-#  countries@data$COUNTRY == "Brazil"|
-#  countries@data$UNREG1 == "Central America"|
-#   countries@data$UNREG1 == "Caribbean",]
-
 ###################################################################
 
 dist <- readRDS(paste0( root, "/CWR_pre-breeding/Results/input_tables/chirps/tdist_america.rds"))
 base <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/AgMerra_template.RDS"))
-### Dist Euclidea
-results <- data.frame (cellID= dist$cellID, EUCLI= dist$EUCLI) #dist euclidiana
-a <- results[!duplicated(results$cellID), ]
-y <- summary(a)
-y
-quantile(a$, prob = seq(0, 1, length = 11), type = 5)
-min <- 13.68
-max <-  15.60
-a$condition <- NA
-a$condition[which(a$EUCLI <= min)] <- 1 
-a$condition[which(a$EUCLI >= max)] <-2 
-a$condition[which((a$EUCLI > min) & (a$EUCLI < max) )] <- 3
-a<- na.omit(a)
-as.factor(a$condition)
 base[] <- NA
-base[][a$cellID] <- a$cond
-base <- raster::crop(x = base, y = extent(america)) # Crop according to the study region
+
+dist2 <- dist
+dist2$Eucl <- cut(dist2$Eucl, quantile(dist2$Eucl, prob = seq(0, 0.5, by = .1)))
+dist2$Eucl <- as.character(dist2$Eucl)
+dist2$Eucl[which(dist2$Eucl == "(0,11.9]")] <- "10%"
+dist2$Eucl[which(dist2$Eucl == "(11.9,13.3]")] <- "20%"
+dist2$Eucl[which(dist2$Eucl == "(13.3,14]")] <- "30%"
+dist2$Eucl[which(dist2$Eucl == "(14,14.4]")] <- "40%"
+dist2$Eucl[which(dist2$Eucl == "(14.4,14.7]")] <- "50%"
+dist2 <- cbind(dist2, xyFromCell(object = base, cell = dist2$cellID))
+myPalette <- colorRampPalette(rev(brewer.pal(5, "Spectral")))
+ggplot(data = dist2, aes(x = x, y = y, fill = Eucl)) +
+  #scale_fill_gradientn(colours = myPalette(5)) +
+  # scale_fill_distiller(palette = "Spectral", na.value="white") +
+  geom_raster() +
+  coord_equal() +
+  theme_bw()
+# Hasta aqui funciona
+#############################################################################################################
+
+
+dist <- cbind(dist, xyFromCell(object = base, cell = dist$cellID))
+dist <- dist %>% select(cellID, x, y, Eucl, DTWarp, CORT)
+dist <- dist %>% gather(key = Metric, value = Value, -(cellID:y))
+
+
+##### Test
+d <- density(dissMat$Eucl)
+plot(d)
+abline(v = quantile(dissMat$Eucl, prob = seq(0, 0.5, by = .1)), col = 4)
+
+
+
+# add a color map with 5 colors
+col = terrain.colors(6)
+plot(base, col=col, breaks=quantile(dissMat$Eucl, prob = seq(0, 0.5, by = .1)), main="", xlim = c(-180, 0))
+
+# One plot
+breaks <- quantile(dissMat$DTWarp, prob = seq(0, 0.5, by = .1))
+myPalette <- colorRampPalette(rev(brewer.pal(6, "Spectral")))
+ggplot(data = dist %>% filter(Metric == "DTWarp"), aes(x = x, y = y, fill = Value)) +
+  scale_fill_gradientn(colours = myPalette(6),#c("red","green","blue","black","pink"),
+                       breaks = breaks, labels = format(breaks)) +
+  # scale_fill_distiller(palette = "Spectral", na.value="white") +
+  geom_raster() +
+  coord_equal() +
+  theme_bw()
+
+# All plots
+suppressMessages(library(ggplot2))
+plot_func <- function(df, name) {
+  ggplot(data = df, aes(x = x, y = y, fill = Value)) +
+    geom_raster() +
+    coord_equal() +
+    theme_bw() +
+    scale_fill_continuous(name = name)
+}
+
+# plot_func(df = soil_data, name = "Soilcp")
+nested_tmp <- dist %>% 
+  group_by(Metric) %>% 
+  nest() %>% 
+  mutate(plots = map2(data, Metric, plot_func)) 
+
+gridExtra::grid.arrange(grobs = nested_tmp$plots)
+
+
+
 
 
 theme_set(theme_bw())
@@ -528,6 +555,20 @@ X1<- gplot(base)+geom_tile(aes(fill = value)) +
   ggtitle("Distance Eclidea")+
   scale_x_continuous(limits = c(-180, 0))+
   coord_equal()
+
+
+X1<- gplot(base)+geom_tile(aes(fill = value)) +
+  facet_wrap(~ variable) +
+  scale_colour_gradientn(colours = c("red","white","blue"),
+                         breaks = quantile(dissMat$Eucl, prob = seq(0, 0.5, by = .1)), labels = format(quantile(dissMat$Eucl, prob = seq(0, 0.5, by = .1)))) +
+  geom_polygon(data=america, aes(x=long, y=lat, group=group),fill=NA,color="black", size=0.5)+
+  ggtitle("Distance Eclidea")+
+  scale_x_continuous(limits = c(-180, 0))+
+  coord_equal()
+
+
+
+
 ###################
 
 dist <- readRDS(paste0( root, "/CWR_pre-breeding/Results/input_tables/chirps/tdist_america.rds"))
