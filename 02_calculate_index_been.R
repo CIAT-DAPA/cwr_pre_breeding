@@ -1,4 +1,4 @@
-### indices propios de cada cultivo 
+### indices propios de frijol  
 
 suppressMessages(if(!require(raster)){install.packages('raster'); library(raster)} else {library(raster)})
 suppressMessages(if(!require(ncdf4)){install.packages('ncdf4'); library(ncdf4)} else {library(ncdf4)})
@@ -63,9 +63,7 @@ tmin <- readRDS(paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_tmi
 
 
 #Precense
-bean <- readRDS(paste0(root,"/CWR_pre-breeding/Input_data/presence_data/Bean/database/area_base.rds"))
-crop <- bean
-rm(bean)
+crop <- readRDS(paste0(root,"/CWR_pre-breeding/Input_data/presence_data/Bean/database/area_base.rds"))
 
 cell <- crop$cellID
 tmax <- filter(tmax,  cellID  %in% cell)
@@ -419,21 +417,10 @@ system.time(indexes_been <- mclapply(1:nrow(tmax), function(i){  ### nrow(tmax)
 }, mc.cores = 20, mc.preschedule = F))
 
 tabla <- do.call(rbind, indexes_been)
-#saveRDS(tabla, paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_tmax/tabla_rbind_frijol_america.rds"))
-saveRDS(tabla, paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_tmax/tabla_rbind_frijol_africa.rds"))
-saveRDS(tabla, paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_tmax/tabla_rbind_frijol_asia.rds"))
-saveRDS(tabla, paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_tmax/tabla_rbind_frijol_europa.rds"))
-saveRDS(tabla, paste0(root, "/CWR_pre-breeding/Results/input_tables/agmerra_tmax/tabla_rbind_frijol_oceania.rds"))
-
-
-
-
-
-
-
-
-
-
-
+#saveRDS(tabla, paste0(root, "/CWR_pre-breeding/Input_data/presence_data/Bean/database/Crop_indexes/index_tabla_rbind_frijol_america.rds"))
+saveRDS(tabla, paste0(root, "/CWR_pre-breeding/Input_data/presence_data/Bean/database/Crop_indexes/index_tabla_rbind_frijol_africa.rds"))
+saveRDS(tabla, paste0(root, "/CWR_pre-breeding/Input_data/presence_data/Bean/database/Crop_indexes/index_tabla_rbind_frijol_asia.rds"))
+saveRDS(tabla, paste0(root, "/CWR_pre-breeding/Input_data/presence_data/Bean/database/Crop_indexes/index_tabla_rbind_frijol_europa.rds"))
+saveRDS(tabla, paste0(root, "/CWR_pre-breeding/Input_data/presence_data/Bean/database/Crop_indexes/index_tabla_rbind_frijol_oceania.rds"))
 
 
