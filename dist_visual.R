@@ -61,12 +61,11 @@ saveRDS(tdist,paste0(root,"/CWR_pre-breeding/Input_data/presence_data/Bean/datab
 ##############    FILTRO CULTIVOS   #######################
 
 
-#bean  <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/presence_data/Bean/database/area_base.rds"))
-potato  <- readRDS(paste0(root,"/CWR_pre-breeding/Input_data/presence_data/Potato/database/area_base.rds"))
+bean  <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/presence_data/Bean/database/Precense_data/area_base.rds"))
+#potato  <- readRDS(paste0(root,"/CWR_pre-breeding/Input_data/presence_data/Potato/database/Precense_data/area_base.rds"))
 #finger  <- readRDS(paste0(root,"/CWR_pre-breeding/Input_data/presence_data/Bean/database/area_base.rds"))
 #eggplant  <- readRDS(paste0(root,"/CWR_pre-breeding/Input_data/presence_data/Eggplant/database/area_base.rds"))
-
-tdist <- readRDS(paste0(root,"/CWR_pre-breeding/Input_data/presence_data/Bean/database/Crop_indexes/dist_global_index_calor_ciat_palmira.rds"))
+tdist <- readRDS(paste0(root,"CWR_pre-breeding/Input_data/presence_data/Bean/database/General_indexes/dist_global_index_ciat_palmira.rds"))
 crop <- bean
 #crop <-  potato 
 #crop <-  finger
@@ -106,9 +105,11 @@ dist2$Cat_num <- as.numeric(gsub(pattern = "\\%", replacement = "", dist2$DTWarp
 
 # colours <- c("red", "yellow", "limegreen","royalblue3", "turquoise1")
 # https://moderndata.plot.ly/create-colorful-graphs-in-r-with-rcolorbrewer-and-plotly/
+# colours <- c("red", "yellow", "limegreen","royalblue3", "turquoise1")
+# https://moderndata.plot.ly/create-colorful-graphs-in-r-with-rcolorbrewer-and-plotly/
 marker = list(color = brewer.pal(5, "Set1"))
 marker
-colours <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00")
+colours <- c("#f0f9e8", "#bae4bc", "#7bccc4", "#43a2ca", "#0868ac")
 Y <-ggplot(data = dist2, aes(x = x, y = y, fill = DTWarp_cat)) +
   geom_raster() +
   coord_equal() +
@@ -138,4 +139,3 @@ Y <-ggplot(data = dist2, aes(x = x, y = y, fill = DTWarp_cat)) +
   guides(fill = guide_legend(title = "Similarity (%)"))
 Y <- Y + geom_point(aes(x = -76.35666666, y = 3.50472222), shape = 25, colour = "lawngreen", fill = "lawngreen", size = 3)
 ggsave(filename=paste0(root, '/CWR_pre-breeding/Input_data/presence_data/Bean/plots/DTW_archivo_calor_palmira_zoom.png'),plot=Y, width=8, height=8, units='in')
-
