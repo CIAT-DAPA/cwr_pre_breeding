@@ -1,13 +1,20 @@
 # CWR pre-breeding characterising testing environments: base code
 # Authors: B. Mora & H. Achicanoy
-# CIAT, 2017
+# CIAT, 2018
 
-## Extract current climate data (just once)
-# source("extractCurrentClimate.R") # Already done. Take care!!!
-
-## Bias-correction & downscaling for future data (just once)
-
+# R options
 options(warn = -1); options(scipen = 999); g <- gc(reset = T); rm(list = ls())
+
+# Extract current climate data
+if(!file.exists()){
+  source("00_extract_current_climate.R")
+}
+
+# Extract future climate data
+if(!file.exists()){
+  source("00_extract_future_climate.R")
+}
+
 
 # loop by crop
 crop <- "bean"
