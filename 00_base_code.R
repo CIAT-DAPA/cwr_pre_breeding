@@ -1,4 +1,4 @@
-# CWR pre-breeding characterising testing environments: base code
+# CWR pre-breeding characterising testing environments: master code
 # Authors: B. Mora & H. Achicanoy
 # CIAT, 2018
 
@@ -15,26 +15,30 @@ if(!file.exists()){
   source("00_extract_future_climate.R")
 }
 
+# Calculating current water balance for all pixels over the world
+if(!file.exists()){
+  source("00_calculating_current_water_balance.R")
+}
 
-# loop by crop
-crop <- "bean"
+# Calculating future water balance for all pixels over the world
+if(!file.exists()){
+  source("00_calculating_future_water_balance.R")
+}
 
-# Step 1: Crop area identification
-source("01_cwr_id_occurrence_data.R")
-system.time(exp = {occ_data <- crop_area_id(crop = crop); rm(crop_area_id)})
+# Calculating general crop indices: loop by continent
+crop <- "Bean"
+if(!file.exists()){
+  source("01_calculating_general_indices.R") # Please run since here
+  continentList <- c("Africa", "America", "Asia", "Europa", "Oceania")
+  for(k in 1:length(continentList)){
+    generalIndices(crop = crop, continent = continentList[k])
+  }; rm(i) # Until here
+}
 
-# Step 2: Crop cycle identification by pixel
-source("02_cwr_id_crop_growing_cycle.R")
-system.time(exp = {occ_data <- crop_cycle_id(crop = crop, occ_data = occ_data); rm(crop_cycle_id)})
+# Calculating specific crop indices: loop by continent (improve it)
 
-# Step 3: Index calculation for current data
-source("03_cwr_index_calculation_current_climate.R")
+# Calculating similarity measures for general crop indices (improve it)
 
-# Step 5: Extract future climate
-source("")
+# Calculating similarity measures for specific crop indices (improve it)
 
-# Step 6: Index calculation for future data
-source("")
-
-# Step 7: Calculate similarity index according to pre-breeding sites
-source("")
+# Future analysis
