@@ -31,7 +31,7 @@ if(!file.exists()){
   source("01_calculating_general_indices.R") # Please run since here
   continentList <- c("Africa", "America", "Asia", "Europa", "Oceania")
   for(k in 1:length(continentList)){
-    generalIndices(crop = crop, continent = continentList[k])
+    generalIndices(crop = crop, continent = continentList[k], ncores = 15)
   }; rm(i) # Until here
 }
 

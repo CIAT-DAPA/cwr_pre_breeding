@@ -41,6 +41,7 @@ calc_wat_bal <- function(continent = "Europa"){
   r <- resample(l, base, method = "ngb")
   rm(l)
   # Next steps: Obtain coordinates from pixelList to extract depth values from raster
+  data.frame(raster::xyFromCell(object = base, cell = pixelList), raster::extract(x = r, y = raster::xyFromCell(object = base, cell = pixelList)))
   
   # Calculate soil capacity
   

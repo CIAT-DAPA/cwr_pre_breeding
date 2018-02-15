@@ -39,7 +39,7 @@ if(OSys == "Linux"){
   }
 }; rm(OSys)
 
-generalIndices <- function(crop = "Bean", continent = "Europa"){
+generalIndices <- function(crop = "Bean", continent = "Europa", ncores = 15){
   
   output <- paste0(root, "/CWR_pre-breeding/Results/", crop, "/General_indices/", tolower(crop), "_general_indices_", tolower(continent), ".rds")
   if(!file.exists(output)){
@@ -332,7 +332,7 @@ generalIndices <- function(crop = "Bean", continent = "Europa"){
       
       return(results)
       
-    }, mc.cores = 15, mc.preschedule = F)
+    }, mc.cores = ncores, mc.preschedule = F)
     tabla <- do.call(rbind, general_indices)
     saveRDS(tabla, output)
     cat(">>> Results saved successfully ...\n")
