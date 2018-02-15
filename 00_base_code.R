@@ -18,6 +18,10 @@ if(!file.exists()){
 # Calculating current water balance for all pixels over the world
 if(!file.exists()){
   source("00_calculating_current_water_balance.R")
+  continentList <- c("Africa", "America", "Asia", "Europa", "Oceania")
+  for(k in 1:length(continentList)){
+    calc_wat_bal(continent = continentList[k], ncores = 15)
+  }; rm(k)
 }
 
 # Calculating future water balance for all pixels over the world
@@ -32,12 +36,15 @@ if(!file.exists()){
   continentList <- c("Africa", "America", "Asia", "Europa", "Oceania")
   for(k in 1:length(continentList)){
     generalIndices(crop = crop, continent = continentList[k], ncores = 15)
-  }; rm(i) # Until here
+  }; rm(k) # Until here
 }
 
 # Calculating specific crop indices: loop by continent (improve it)
 
 # Calculating similarity measures for general crop indices (improve it)
+if(!file.exists()){
+  source("")
+}
 
 # Calculating similarity measures for specific crop indices (improve it)
 

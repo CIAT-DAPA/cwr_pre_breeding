@@ -113,8 +113,10 @@ calc_wat_bal <- function(continent = "Europa", ncores = 15){
       return(watbal_loc)
       
     }, mc.cores = ncores, mc.preschedule = F)
-    general_watbal <- tibble::tibble(cellID = pixelList, raster::xyFromCell(object = base, cell = pixelList), watbal = watbalList)
+    general_watbal <- tibble::tibble(cellID = pixelList)
+    general_watbal <- cbind(general_watbal, raster::xyFromCell(object = base, cell = pixelList)) %>% as.tibble()
     colnames(general_watbal)[2:3] <- c("lon", "lat")
+    general_watbal$watbal <- watbalList
     saveRDS(object = general_watbal, file = paste0(root, "/CWR_pre-breeding/Input_data/_soils/Water_balance/watbal_", tolower(continent), ".rds"))
     
     return(cat(">>> Process done\n"))
