@@ -132,7 +132,7 @@ generalIndices <- function(crop = "Bean", continent = "Europa", ncores = 15){
     cat(">>> Calculating agroclimatic indices ...\n")
     general_indices <- parallel::mclapply(X = 1:length(pixelList), FUN = function(i){
       
-      cat(paste0("Processing pixel: ", pixelList[i], "\n"))
+      cat(paste0("Processing pixel: ", i, "\n"))
       
       # Define parameters
       duration <- prec$Duration[prec$cellID == pixelList[i]]
