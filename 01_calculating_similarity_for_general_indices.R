@@ -21,7 +21,7 @@ if(OSys == "Linux"){
   }
 }; rm(OSys)
 
-calc_similarity <- function(crop = "Bean", ncores = 15){
+calc_similarity <- function(crop = "Bean", scaled = T, ncores = 15){
   
   if(!file.exists()){
     
@@ -38,11 +38,11 @@ calc_similarity <- function(crop = "Bean", ncores = 15){
     trials <- trials %>% filter(Crop == crop)
     
     # Loading agroclimatic indices
-    ind_africa  <- readRDS(paste0(root, "..."))
-    ind_america <- readRDS(paste0(root, "..."))
-    ind_asia    <- readRDS(paste0(root, "..."))
-    ind_europa  <- readRDS(paste0(root, "..."))
-    ind_oceania <- readRDS(paste0(root, "..."))
+    ind_africa  <- readRDS(paste0(root, "/CWR_pre-breeding/Results/Bean/General_indices/bean_general_indices_africa.rds"))
+    ind_america <- readRDS(paste0(root, "/CWR_pre-breeding/Results/Bean/General_indices/bean_general_indices_america.rds"))
+    ind_asia    <- readRDS(paste0(root, "/CWR_pre-breeding/Results/Bean/General_indices/bean_general_indices_asia.rds"))
+    ind_europa  <- readRDS(paste0(root, "/CWR_pre-breeding/Results/Bean/General_indices/bean_general_indices_europa.rds"))
+    ind_oceania <- readRDS(paste0(root, "/CWR_pre-breeding/Results/Bean/General_indices/bean_general_indices_oceania.rds"))
     
     # Putting all together
     giWorld <- rbind(ind_africa, ind_america, ind_asia, ind_europa, ind_oceania)
@@ -51,7 +51,7 @@ calc_similarity <- function(crop = "Bean", ncores = 15){
     for(i in 1:nrow(trials)){
       
       # Varying by coordinate
-      refCoord <- raster::cellFromXY(object = base, xy = trials[i, c("Longitude", "Latitude")])
+      refCoord <- raster::cellFromXY(object = base, xy = trials[i, c("Longitude", "Latitude")] %>% as.data.frame)
       
       # List of pixels
       pixelList <- giWorld$cellID %>% unique %>% sort
@@ -60,7 +60,8 @@ calc_similarity <- function(crop = "Bean", ncores = 15){
       refIndices <- giWorld %>% filter(cellID == refCoord)
       refIndices <- refIndices %>% spread(key = Year, value = Value)
       
-      for(j in 1:length(pixelList)){
+      # Calculate climatic similarity between pixels
+      similarity <- parallel::mclapply(X = 1:length(pixelList), FUN = function(j){
         
         # Identify indices from compared pixel
         cmpIndices <- giWorld %>% filter(cellID == pixelList[j])
@@ -71,9 +72,32 @@ calc_similarity <- function(crop = "Bean", ncores = 15){
         
         matrix.list <- list(data.matrix(refIndices[,3:ncol(refIndices)]), data.matrix(cmpIndices[,3:ncol(cmpIndices)]))
         
-        parallelDist::parDist(x = matrix.list, method = "dtw")
+        # Calculate similarity through multivariate DTW
+        calc_multivariate_dtw <- function(data = matrix.list, scaled = T){
+          if(scaled){
+            means_list1 <- apply(X = matrix.list[[1]], MARGIN = 1, FUN = mean)
+            means_list2 <- apply(X = matrix.list[[2]], MARGIN = 1, FUN = mean)
+            sds_list1 <- apply(X = matrix.list[[1]], MARGIN = 1, FUN = sd)
+            sds_list2 <- apply(X = matrix.list[[1]], MARGIN = 1, FUN = sd)
+            matrix.list[[1]] <- t(apply(X = matrix.list[[1]], MARGIN = 1, FUN = scale))
+            matrix.list[[2]] <- t(apply(X = matrix.list[[2]], MARGIN = 1, FUN = scale))
+            matrix.list[[1]][which(sds_list1 == 0),] <- means_list1[which(sds_list1 == 0)]
+            matrix.list[[2]][which(sds_list2 == 0),] <- means_list2[which(sds_list2 == 0)]
+            rm(means_list1, means_list2, sds_list1, sds_list2)
+            calcDTW <- parallelDist::parDist(x = matrix.list, method = "dtw")
+          } else {
+            calcDTW <- parallelDist::parDist(x = matrix.list, method = "dtw")
+          }
+          return(calcDTW)
+        }
+        dtwObj <- calc_multivariate_dtw(data = matrix.list, scaled = scaled)
+        results <- data.frame(cellID = pixelList[j], dtw = dtwObj)
+        return(results)
         
-      }
+      })
+      similarity <- do.call(rbind, similarity)
+      
+      # Save a table with the following columns: DTW calculated, DTW categorized
       
     }
     
