@@ -39,7 +39,7 @@ if(OSys == "Linux"){
   }
 }; rm(OSys)
 
-generalIndices <- function(crop = "Bean", continent = "Europa", ncores = 15){
+generalIndices <- function(crop = "Bean", continent = "Oceania", ncores = 15){
   
   output <- paste0(root, "/CWR_pre-breeding/Results/", crop, "/General_indices/", tolower(crop), "_general_indices_", tolower(continent), ".rds")
   if(!file.exists(output)){
@@ -96,10 +96,35 @@ generalIndices <- function(crop = "Bean", continent = "Europa", ncores = 15){
             harvest_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Millet_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "harvest day")
             harvest_rf_ggcmi <- harvest_rf_ggcmi[[1]]
             
+          } else{
+            if(crop == "Carrot"){
+              # Planting dates
+              planting_rf_ggcmi <- raster::stack(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/carrot_planting.tif"))
+              planting_rf_ggcmi <- planting_rf_ggcmi[[1]]
+              
+              # Harversting dates
+              harvest_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/carrot_harvest.tif"))
+              harvest_rf_ggcmi <- harvest_rf_ggcmi[[1]]
+              
+            }else{
+              if(crop == "Eggplant"){ 
+                
+                # Planting dates
+                planting_rf_ggcmi <- raster::stack(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/eggplant_planting.tif"))
+                planting_rf_ggcmi <- planting_rf_ggcmi[[1]]
+                
+                # Harversting dates
+                harvest_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/eggplant_harvest.tif"))  
+                harvest_rf_ggcmi <- harvest_rf_ggcmi[[1]]
+                
+                
+              }
+            }
           }
         }
       }
     }
+    
     
     # Extract important dates
     prec$Planting <- raster::extract(x = planting_rf_ggcmi, y = prec[,c("lon", "lat")])
