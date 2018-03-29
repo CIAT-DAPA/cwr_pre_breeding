@@ -74,20 +74,26 @@ generalIndices(crop = crop, continent = continentList[2], ncores =10)
   setwd("/home/bmora/cwr_pre_breeding")
   source("02_calculate_index_been_heat.R") # Please run since here
   continentList <- c("Africa", "America", "Asia", "Europa", "Oceania")
-     beanIndices(continent = continentList[5], ncores = 10)
+     beanIndices(continent = continentList[3], ncores = 10)
   
 
 
      ######### specific index Sunflower 
      
      setwd("/home/bmora/cwr_pre_breeding")
-     source("02_calculate_index_been_heat.R") # Please run since here
+     source("021_calculate_index_sunflower_heat.R") # Please run since here
      continentList <- c("Africa", "America", "Asia", "Europa", "Oceania")
      sunflowerIndices(continent = continentList[3], ncores = 10)
      
 
 
-
+     ######### specific index Carrot 
+     
+     setwd("/home/bmora/cwr_pre_breeding")
+     source("022_calculate_index_carrot_heat.R") # Please run since here
+     continentList <- c("Africa", "America", "Asia", "Europa", "Oceania")
+     CarrotIndices(continent = continentList[3], ncores = 10)
+     
 
 
 

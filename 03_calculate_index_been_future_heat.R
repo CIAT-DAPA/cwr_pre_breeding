@@ -1,4 +1,4 @@
-#CWR pre-breeding characterising testing environments: Index sunflower 
+#CWR pre-breeding characterising testing environments: calculating general indices
 # Authors: B. Mora & H. Achicanoy
 # CIAT, 2018
 
@@ -39,9 +39,9 @@ if(OSys == "Linux"){
   }
 }; rm(OSys)
 
-sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp45" ,gcm= "gcm1"){
+beanIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp45" ,gcm= "gcm1"){
   
-  output <- paste0(root, "/CWR_pre-breeding/Results/Sunflower/_future/",rcp,"/",gcm,"/Crop_index/sunflower_crop_indices_", tolower(continent), ".rds")
+  output <- paste0(root, "/CWR_pre-breeding/Results/Bean/_future/",rcp,"/",gcm,"/Crop_index/bean_crop_indices_", tolower(continent), ".rds")
   if(!file.exists(output)){
     
     
@@ -49,8 +49,24 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
     cat(">>> Starting process for bean in", continent, "continent\n\n")
     cat(">>> Loading climate data ...\n")
     
-    tmax <- readRDS(paste0(root, '/CWR_pre-breeding/Input_data/_future_climate/',rcp,'/',gcm ,'/agmerra_tmax/tmax_filtered_', tolower(continent), '.rds'))
-    tmin <- readRDS(paste0(root, '/CWR_pre-breeding/Input_data/_future_climate/',rcp,'/',gcm ,'/agmerra_tmin/tmin_filtered_', tolower(continent), '.rds')) 
+    
+    if (continent == "America"){
+      tmax <- readRDS(paste0(root, '/CWR_pre-breeding/Input_data/_future_climate/',rcp,'/',gcm ,'/agmerra_tmax/tmax_filtered_', tolower(continent), '.rds'))
+      tmin <- readRDS(paste0(root, '/CWR_pre-breeding/Input_data/_future_climate/',rcp,'/',gcm ,'/agmerra_tmin/tmin_filtered_', tolower(continent), '.rds'))
+      cellID <- raster::cellFromXY(base, xy = c(-76.3566666666666, 3.5047222))
+      x <- tmin[which(tmin$cellID == cellID), ]
+      x1 <-x[,-(1:3)]+7
+      x <- cbind(x[,1:3],x1)
+      cor <- rownames(x)
+      tmin <- tmin[-as.numeric(cor), ]
+      tmin <- rbind(tmin,x)
+    }
+    
+    else{
+      tmax <- readRDS(paste0(root, '/CWR_pre-breeding/Input_data/_future_climate/',rcp,'/',gcm ,'/agmerra_tmax/tmax_filtered_', tolower(continent), '.rds'))
+      tmin <- readRDS(paste0(root, '/CWR_pre-breeding/Input_data/_future_climate/',rcp,'/',gcm ,'/agmerra_tmin/tmin_filtered_', tolower(continent), '.rds'))
+      
+    }    
     
     tmax$bean_coordinates <- NULL
     tmin$bean_coordinates <- NULL
@@ -58,15 +74,15 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
     # Load crop cycle
     cat(">>> Loading crop cycle data ...\n")
     # Planting dates
-    planting_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Sunflower_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "planting day")
+    planting_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Pulses_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "planting day")
     planting_rf_ggcmi <- planting_rf_ggcmi[[1]]
     # Harversting dates
-    harvest_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Sunflower_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "harvest day")
+    harvest_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Pulses_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "harvest day")
     harvest_rf_ggcmi <- harvest_rf_ggcmi[[1]]
     
     # Restricting study area to crop area
     cat(">>> Restricting study area to crop area ...\n")
-    crop<- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/_crop_presence/Sunflower/database/area_base.rds"))
+    crop<- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/_crop_presence/Bean/database/area_base.rds"))
     
     cell <- crop$cellID
     tmax <- filter(tmax,  cellID  %in% cell)
@@ -100,7 +116,7 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
     test<- tmin[which(tmin$Duration =="Two years"), ]
     
     require(parallel)
-    system.time(indexes_been <- mclapply(1:nrow(tmax), function(i){  ### nrow(tmax)
+    system.time(indexes_been <- mclapply(1:nrow(tmax), function(i){   ### nrow(tmax)
       cat(paste0("Processed pixel:", i, "\n"))
       # Parameters
       duration <- tmax$Duration[i]
@@ -122,78 +138,78 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
         X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
         X$Year <- lubridate::year(as.Date(X$Date))
         X$Yday <- lubridate::yday(as.Date(X$Date))
-        X <- X %>% group_by(Year) %>% dplyr::filter(Yday >= start +75& Yday <= start+115)
+        X <- X %>% group_by(Year) %>% dplyr::filter(Yday >= start & Yday <= start +70)
         
         Y <- time.serie1
         Y <- Y %>% gather(key = Date, value = Value, -(cellID:lat))
         Y$Year <- lubridate::year(as.Date(Y$Date))
         Y$Yday <- lubridate::yday(as.Date(Y$Date))
-        Y <- Y %>% group_by(Year) %>% dplyr::filter(Yday >= start+75& Yday <= start+115)
+        Y <- Y %>% group_by(Year) %>% dplyr::filter(Yday >= start & Yday <= start +70)
         
         Z <- time.serie2
         Z <- Z %>% gather(key = Date, value = Value, -(cellID:lat))
         Z$Year <- lubridate::year(as.Date(Z$Date))
         Z$Yday <- lubridate::yday(as.Date(Z$Date))
-        Z <- Z %>% group_by(Year) %>% dplyr::filter(Yday >= start+75& Yday <= start+115)
+        Z <- Z %>% group_by(Year) %>% dplyr::filter(Yday >= start& Yday <= start +70)
         
-        # Dias con tmax > 35 
-        dr_stress<- function(TMAX, p_thresh = 35){
-          days <- sum(TMAX > 35)
+        # Dias con tmax > 40 
+        dr_stress<- function(TMAX, p_thresh = 40){
+          days <- sum(TMAX > 40)
           return(days)
         }
         dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-        Texteme <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(Texteme = dr_stressCMP(Value, p_thresh = 35))
+        Texteme <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(Texteme = dr_stressCMP(Value, p_thresh = 40))
         Texteme <- Texteme %>% as.data.frame
-        names(Texteme)[2] <- "Value"; Texteme$Variable <- "Textreme"
+        names(Texteme)[2] <- "Value"; Texteme$Variable <- "Texteme"
         
-        # Dias con tmin > 27
-        dr_stress<- function(TMIN, p_thresh = 27){
-          days <- sum(TMIN > 27)
+        # Dias con tmin > 22
+        dr_stress<- function(TMIN, p_thresh = 22){
+          days <- sum(TMIN > 22)
         }
         dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-        days_tmin22 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(days_tmin22 = dr_stressCMP(Value, p_thresh = 27))
+        days_tmin22 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(days_tmin22 = dr_stressCMP(Value, p_thresh = 22))
         days_tmin22 <- days_tmin22 %>% as.data.frame
-        names(days_tmin22)[2] <- "Value"; days_tmin22$Variable <- "days_tmin27"
+        names(days_tmin22)[2] <- "Value"; days_tmin22$Variable <- "days_tmin22"
         
         
-        # Dias con tmin > 32
-        dr_stress<- function(TMIN, p_thresh = 32){
-          days <- sum(TMIN > 32)
+        # Dias con tmin > 24
+        dr_stress<- function(TMIN, p_thresh = 24){
+          days <- sum(TMIN > 24)
           return(days)
         }
         dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-        days_tmin24 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(days_tmin24 = dr_stressCMP(Value, p_thresh = 32))
+        days_tmin24 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(days_tmin24 = dr_stressCMP(Value, p_thresh = 24))
         days_tmin24 <- days_tmin24 %>% as.data.frame
-        names(days_tmin24)[2] <- "Value"; days_tmin24$Variable <- "days_tmin32"
+        names(days_tmin24)[2] <- "Value"; days_tmin24$Variable <- "days_tmin24"
         
-        # Index de calor27 (%)
-        long <- 40 
-        dr_stress<- function(TMIN, p_thresh= 27){
-          fic <- (long)
+        # Index de calor22 (%)
+        long <- tmin$length[i]
+        dr_stress<- function(TMIN, p_thresh= 22){
+          fic <- (long -30)
           sum_day <- sum(TMIN > p_thresh)
           c <- (sum_day)/fic
           return(c)
         }
         dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-        calor22 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(calor22 = dr_stressCMP(Value, p_thresh = 27))
+        calor22 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(calor22 = dr_stressCMP(Value, p_thresh = 22))
         calor22 <- calor22 %>% as.data.frame
-        names(calor22)[2] <- "Value"; calor22$Variable <- "calor27"
+        names(calor22)[2] <- "Value"; calor22$Variable <- "calor22"
         
-        # Index de calor32(%)
-        long <- 40
-        dr_stress<- function(TMIN, p_thresh= 32){
-          fic <- (long)
+        # Index de calor24 (%)
+        long <- tmin$length[i]
+        dr_stress<- function(TMIN, p_thresh= 22){
+          fic <- (long -30)
           sum_day <- sum(TMIN > p_thresh)
           c <- (sum_day)/fic
           return(c)
         }
         dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-        calor24 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(calor24 = dr_stressCMP(Value, p_thresh = 32))
+        calor24 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(calor24 = dr_stressCMP(Value, p_thresh = 24))
         calor24 <- calor24 %>% as.data.frame
-        names(calor24)[2] <- "Value"; calor24$Variable <- "calor32"
+        names(calor24)[2] <- "Value"; calor24$Variable <- "calor24"
         
-        # 18<tmean<22
-        dr_stress <- function(TMEAN, MIN= 18, MAX= 22 ){
+        # 20<tmean<29
+        dr_stress <- function(TMEAN, MIN= 20, MAX= 29 ){
           runs <- rle(TMEAN > MIN & TMEAN <MAX)
           if(max(runs$lengths[runs$values==1], na.rm=TRUE) == -Inf){
             cons_days <- 0
@@ -203,7 +219,7 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
           return(cons_days)
         }
         dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-        optimo <- Z %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(optimo = dr_stressCMP(Value, MIN = 18,MAX=22))
+        optimo <- Z %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(optimo = dr_stressCMP(Value, MIN = 20,MAX=27))
         optimo <- optimo %>% as.data.frame
         names(optimo)[2] <- "Value"; optimo$Variable <- "optimo"
         
@@ -211,6 +227,8 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
         results<- data.frame(cellID= unique(Y$cellID), rbind(Texteme,days_tmin22,days_tmin24,calor22,calor24,optimo))
         
       }else {
+        suppressMessages(library(tidyverse))
+        suppressMessages(library(compiler))
         ###  
         X <- time.serie
         X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
@@ -223,7 +241,8 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
         for(j in 1:nrow(X)){
           X$condition[j] <- X$Yday[j+1] - X$Yday[j]
         }
-        c <- c(unique(X$condition))
+        
+        c <- unique(X$condition)
         X$condition[which(is.na(X$condition))] <- c[3]
         chngs <- which(X$condition == c[3])
         for(j in 1:length(chngs)){
@@ -245,7 +264,7 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
         })
         
         tab <- lapply(1:length(lista), function(i){
-          tabla <-lista[[i]][(75:115),]
+          tabla <-lista[[i]][(1:70),]
           return(tabla)
         })
         X <- do.call(rbind,tab)
@@ -263,10 +282,10 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
         for(j in 1:nrow(Y)){
           Y$condition[j] <- Y$Yday[j+1] - Y$Yday[j]
         }
-        c <- c(unique(Y$condition))
+        c<- unique(Y$condition)
         Y$condition[which(is.na(Y$condition))] <- c[3]
-        chngs <- which(Y$condition == c[3])
         
+        chngs <- which(Y$condition == c[3])
         for(j in 1:length(chngs)){
           if(j == 1){
             Y$condition2[1:chngs[j]] <- j
@@ -287,12 +306,11 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
         })
         
         tab <- lapply(1:length(lista), function(i){
-          tabla <-lista[[i]][(75:115),]
+          tabla <-lista[[i]][(1:70),]
           return(tabla)
         })
         Y <- do.call(rbind,tab)
         Y <- na.omit(Y)
-        #
         #
         Z <- time.serie2
         Z <- Z %>% gather(key = Date, value = Value, -(cellID:lat))
@@ -326,74 +344,74 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
         
         corte <- c(1:29)
         lista <- lapply(1:length(corte), function(i){
-          tablas <- filter(Z, condition== corte[i]) 
+          tablas <- filter (Z, condition== corte[i]) 
           return(tablas)  
         })
         
         tab <- lapply(1:length(lista), function(i){
-          tabla <-lista[[i]][(75:115),]
+          tabla <-lista[[i]][(1:70),]
           return(tabla)
         })
         Z <- do.call(rbind,tab)
         Z <- na.omit(Z) # Dias con tmax > 40 
-        # Dias con tmax > 35 
-        dr_stress<- function(TMAX, p_thresh = 35){
-          days <- sum(TMAX > 35)
+        dr_stress<- function(TMAX, p_thresh = 40){
+          days <- sum(TMAX > 40)
           return(days)
         }
         dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-        Texteme <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(Texteme = dr_stressCMP(Value, p_thresh = 35))
+        Texteme <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(Texteme = dr_stressCMP(Value, p_thresh = 40))
         Texteme <- Texteme %>% as.data.frame
-        names(Texteme)[2] <- "Value"; Texteme$Variable <- "Textreme"
+        names(Texteme)[2] <- "Value"; Texteme$Variable <- "Texteme"
         
-        # Dias con tmin > 27
-        dr_stress<- function(TMIN, p_thresh = 27){
-          days <- sum(TMIN > 27)
-        }
-        dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-        days_tmin22 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(days_tmin22 = dr_stressCMP(Value, p_thresh = 27))
-        days_tmin22 <- days_tmin22 %>% as.data.frame
-        names(days_tmin22)[2] <- "Value"; days_tmin22$Variable <- "days_tmin27"
-        
-        
-        # Dias con tmin > 32
-        dr_stress<- function(TMIN, p_thresh = 32){
-          days <- sum(TMIN > 32)
+        # Dias con tmin > 22 
+        dr_stress<- function(TMIN, p_thresh = 22){
+          days <- sum(TMIN > 22)
           return(days)
         }
         dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-        days_tmin24 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(days_tmin24 = dr_stressCMP(Value, p_thresh = 32))
+        days_tmin22 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(days_tmin22 = dr_stressCMP(Value, p_thresh = 22))
+        days_tmin22 <- days_tmin22 %>% as.data.frame
+        names(days_tmin22)[2] <- "Value"; days_tmin22$Variable <- "days_tmin22"
+        
+        
+        # Dias con tmin > 24 
+        dr_stress<- function(TMIN, p_thresh = 24){
+          days <- sum(TMIN > 24)
+          return(days)
+        }
+        dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
+        days_tmin24 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(days_tmin24 = dr_stressCMP(Value, p_thresh = 24))
         days_tmin24 <- days_tmin24 %>% as.data.frame
-        names(days_tmin24)[2] <- "Value"; days_tmin24$Variable <- "days_tmin32"
+        names(days_tmin24)[2] <- "Value"; days_tmin24$Variable <- "days_tmin24"
         
-        # Index de calor27 (%)
-        long <- 40 
-        dr_stress<- function(TMIN, p_thresh= 27){
-          fic <- (long)
+        # # Index de calor22 (%)
+        long <- tmin$length[i]
+        dr_stress<- function(TMIN, p_thresh= 22){
+          fic <- (long -30)
           sum_day <- sum(TMIN > p_thresh)
           c <- (sum_day)/fic
           return(c)
         }
+        
         dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-        calor22 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(calor22 = dr_stressCMP(Value, p_thresh = 27))
+        calor22 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(calor22 = dr_stressCMP(Value, p_thresh = 22))
         calor22 <- calor22 %>% as.data.frame
-        names(calor22)[2] <- "Value"; calor22$Variable <- "calor27"
-        
-        # Index de calor32 (%)
-        long <- 40
-        dr_stress<- function(TMIN, p_thresh= 32){
-          fic <- (long)
+        names(calor22)[2] <- "Value"; calor22$Variable <- "calor22"
+        # # Index de calor24 (%)
+        long <- tmin$length[i]
+        dr_stress<- function(TMIN, p_thresh= 24,long1){
+          fic <- (long - 30)
           sum_day <- sum(TMIN > p_thresh)
-          c <- (sum_day)/fic
-          return(c)
+          d <- (sum_day)/fic
+          return(d)
         }
         dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-        calor24 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(calor24 = dr_stressCMP(Value, p_thresh = 32))
+        calor24 <- Y %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(calor24 = dr_stressCMP(Value, p_thresh = 24))
         calor24 <- calor24 %>% as.data.frame
-        names(calor24)[2] <- "Value"; calor24$Variable <- "calor32"
+        names(calor24)[2] <- "Value"; calor24$Variable <- "calor24"
         
-        # 18<tmean<22
-        dr_stress <- function(TMEAN, MIN= 18, MAX= 22 ){
+        ## 20<tmean<29
+        dr_stress <- function(TMEAN, MIN= 20, MAX= 29 ){
           runs <- rle(TMEAN > MIN & TMEAN <MAX)
           if(max(runs$lengths[runs$values==1], na.rm=TRUE) == -Inf){
             cons_days <- 0
@@ -403,15 +421,13 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
           return(cons_days)
         }
         dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-        optimo <- Z %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(optimo = dr_stressCMP(Value, MIN = 18,MAX=22))
+        optimo <- Z %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(optimo = dr_stressCMP(Value, MIN = 20,MAX=27))
         optimo <- optimo %>% as.data.frame
         names(optimo)[2] <- "Value"; optimo$Variable <- "optimo"
-        
-        
         results<- data.frame(cellID= unique(Y$cellID), rbind(Texteme,days_tmin22,days_tmin24,calor22,calor24,optimo))
-        
       }
       return(results)
+      
     }, mc.cores = 20, mc.preschedule = F))
     
     tabla <- do.call(rbind, indexes_been)
@@ -420,7 +436,8 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
     return(cat("Process done\n"))
     
   } else {
-    cat(">>> Agroclimatic indices future have been already calculated ...\n")
+    cat(">>> Agroclimatic indices have been already calculated ...\n")
   }
   
 }
+

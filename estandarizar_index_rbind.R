@@ -31,59 +31,49 @@ if(OSys == "Linux"){
   }
 }; rm(OSys)
 
-america <-  readRDS(paste0(root, "/CWR_pre-breeding/Input_data/presence_data/Bean/database/Crop_indexes/index_tabla_rbind_frijol_america.rds"))
-africa<-    readRDS(paste0(root, "/CWR_pre-breeding/Input_data/presence_data/Bean/database/Crop_indexes/index_tabla_rbind_frijol_africa.rds"))
-asia<-      readRDS(paste0(root, "/CWR_pre-breeding/Input_data/presence_data/Bean/database/Crop_indexes/index_tabla_rbind_frijol_asia.rds"))
-europa<-    readRDS(paste0(root, "/CWR_pre-breeding/Input_data/presence_data/Bean/database/Crop_indexes/index_tabla_rbind_frijol_europa.rds"))
-oceania<-   readRDS(paste0(root, "/CWR_pre-breeding/Input_data/presence_data/Bean/database/Crop_indexes/index_tabla_rbind_frijol_oceania.rds"))
 
-unique(america$Variable)
+crop <- "Sunflower" 
 
+africa <-  readRDS(paste0(root, "/CWR_pre-breeding/Results/",crop,"/Crop_indices/",tolower(crop),"_crop_indices_africa.rds"))
+america<-    readRDS(paste0(root, "/CWR_pre-breeding/Results/",crop,"/Crop_indices/",tolower(crop),"_crop_indices_america.rds"))
+asia<-      readRDS(paste0(root, "/CWR_pre-breeding/Results/",crop,"/Crop_indices/",tolower(crop),"_crop_indices_asia.rds"))
+europa<-    readRDS(paste0(root, "/CWR_pre-breeding/Results/",crop,"/Crop_indices/",tolower(crop),"_crop_indices_europa.rds"))
+oceania<-   readRDS(paste0(root, "/CWR_pre-breeding/Results/",crop,"/Crop_indices/",tolower(crop),"_crop_indices_asia.rds"))
 
-america<- dplyr::filter(america, Variable == "Texteme" | Variable == "days_tmin22" |Variable == "days_tmin24" |Variable == "calor22"|Variable == "calor24"|Variable == "optimo" )
-africa<- dplyr::filter(africa, Variable == "Texteme" | Variable == "days_tmin22" |Variable == "days_tmin24" |Variable == "calor22"|Variable == "calor24"|Variable == "optimo" )
-europa<- dplyr::filter(europa, Variable == "Texteme" | Variable == "days_tmin22" |Variable == "days_tmin24" |Variable == "calor22"|Variable == "calor24"|Variable == "optimo" )
-asia<- dplyr::filter(asia,Variable == "Texteme" | Variable == "days_tmin22" |Variable == "days_tmin24" |Variable == "calor22"|Variable == "calor24"|Variable == "optimo" )
-oceania<- dplyr::filter(oceania,Variable == "Texteme" | Variable == "days_tmin22" |Variable == "days_tmin24" |Variable == "calor22"|Variable == "calor24"|Variable == "optimo" )
+variable <- c(as.character(unique(america$Variable)))
 
-
-#tabla <-  america
-#tabla <-  africa
-# tabla <-  europa
-# tabla <-  asia
-tabla <- oceania
+america<- dplyr::filter(america, Variable == variable[1]| Variable == variable[2] |Variable == variable[3] |Variable == variable[4]|Variable == variable[5]|Variable ==variable[6])
+africa<-   dplyr::filter(africa, Variable == variable[1] | Variable == variable[2] |Variable == variable[3] |Variable == variable[4]|Variable == variable[5]|Variable == variable[6] )
+europa<-   dplyr::filter(europa, Variable == variable[1] | Variable == variable[2] |Variable == variable[3] |Variable == variable[4]|Variable == variable[5]|Variable == variable[6] )
+asia<-   dplyr::filter(asia,Variable == variable[1] |Variable == variable[2] |Variable ==  variable[3] |Variable == variable[4]|Variable ==variable[5]|Variable ==variable[6] )
+oceania<-   dplyr::filter(oceania,Variable ==variable[1] | Variable == variable[2]|Variable == variable[3] |Variable == variable[4]|Variable == variable[5]|Variable == variable[6] )
 
 
-tabla$Year <- as.numeric(tabla$Year)
-tabla$Value <- as.numeric(tabla$Value)
-tabla$cellID <- as.numeric(tabla$cellID)
-vars <- unique(tabla$Variable)
-
-spread_tables <- lapply(1:length(vars), function(i){
-  df <- tabla %>% filter(Variable == vars[i])
-  df <- df %>% dplyr::group_by(Variable) %>% tidyr::spread(Year, Value)
-  df$Variable <- NULL
-  names(df)[2:ncol(df)] <- paste0(vars[i], "-", names(df)[2:ncol(df)])
-  df2 <- apply(X=df[,-1], MARGIN = 1, scale)
-  df2 <- t(df2)
-  df2<- data.frame(cellID=df[,1],df2)
-  names(df2)[2:ncol(df2)] <-  names(df)[2:ncol(df)]
-  return(df2)
+tabla <- list(america, africa, europa, asia,oceania) 
+tabla2 <- lapply(1:length(tabla), function(j){
+  cat(paste0("Processed tabla:", j, "\n"))
+  
+  tabla[[j]]$Year <- as.numeric(tabla[[j]]$Year)
+  tabla[[j]]$Value <- as.numeric(tabla[[j]]$Value)
+  tabla[[j]]$cellID <- as.numeric(tabla[[j]]$cellID)
+  vars <- c(unique(tabla[[j]]$Variable))
+  
+  spread_tables <- lapply(1:length(vars), function(i){
+    df <- tabla[[j]] %>% filter(Variable == vars[i])
+    df <- df %>% dplyr::group_by(Variable) %>% tidyr::spread(Year, Value)
+    df$Variable <- NULL
+    names(df)[2:ncol(df)] <- paste0(vars[i], "-", names(df)[2:ncol(df)])
+    df2 <- apply(X=df[,-1], MARGIN = 1, scale)
+    df2 <- t(df2)
+    df2<- data.frame(cellID=df[,1],df2)
+    names(df2)[2:ncol(df2)] <-  names(df)[2:ncol(df)]
+    return(df2)
+  })
+  tabla2 <- Reduce(function(...) merge(..., by = "cellID", all.x= T), spread_tables)
+  tabla2 <- replace(tabla2, is.na(tabla2),0)
+  return(tabla2)
 })
-tabla2 <- Reduce(function(...) merge(..., by = "cellID", all.x= T), spread_tables)
 
-
-# america <- tabla2
-#africa <- tabla2
-#europa <- tabla2
-##asia <- tabla2
-oceania <- tabla2
-rm(tabla,tabla2)
-
-tabla2 <- rbind(america, europa,asia,africa,oceania)
-saveRDS(tabla2, paste0(root, "/CWR_pre-breeding/Input_data/presence_data/Bean/database/Crop_indexes/global_index_estandarizados_frijol_calor.rds"))
+tabla2 <- do.call(rbind, tabla2)
+saveRDS(tabla2, paste0(root, "/CWR_pre-breeding/Results/",crop,"/Crop_indices/global_index_estandarizados_",tolower(crop),"_calor.rds"))
 rm(america,africa,asia,oceania,europa)
-
-
-
-

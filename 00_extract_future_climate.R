@@ -1,71 +1,148 @@
-# CWR pre-breeding characterising testing environments: extract future climate
-# Authors: B. Mora & H. Achicanoy
-# CIAT, 2018
+# Brayan Mora
 
-# Load R packages
-suppressMessages(if(!require(raster)){install.packages('raster'); library(raster)} else {library(raster)})
-suppressMessages(if(!require(sp)){install.packages('sp'); library(sp)} else {library(sp)})
-suppressMessages(if(!require(rgdal)){install.packages('rgdal'); library(rgdal)} else {library(rgdal)})
-suppressMessages(if(!require(velox)){install.packages('velox'); library(velox)} else {library(velox)})
-suppressMessages(if(!require(tidyverse)){install.packages('tidyverse'); library(tidyverse)} else {library(tidyverse)})
 
-# # Matching combinations GCM-RCP-time
-# c("BNU-ESM" = "bnu_esm")
-# c("CanESM2" = "cccma_canesm2")
-# c("CSIRO-Mk3-6-0" = "csiro_mk3_6_0")
-# c("GFDL-CM3" = "gfdl_cm3")
-# c("inmcm4" = "inm_cm4")
-# c("IPSL-CM5A-LR" = "ipsl_cm5a_lr")
-# c("IPSL-CM5A-MR" = "ipsl_cm5a_mr")
-# c("MIROC-ESM-CHEM" = "miroc_esm_chem")
-# c("MPI-ESM-LR" = "mpi_esm_lr")
-# c("MPI-ESM-MR" = "mpi_esm_mr")
-# c("NorESM1-M" = "ncc_noresm1_m")
+############################################################################################################################################
+############################################################################################################################################
+##############################################      85                   ####################################################################
+############################################################################################################################################
+############################################################################################################################################
 
-climateWizardSrc <- "//ccafsserver.cgiarad.org/data_climatewizard/AR5_Global_Daily_25k" # It has: prec, tmax, tmin
-rstList <- list.files(path = climateWizardSrc, pattern = "*.nc$", full.names = F)
-rstList <- rstList[setdiff(1:length(rstList), grep(pattern = "historical", x = rstList))]
-rstList <- rstList[-1]
-grep2 <- Vectorize(FUN = grep, vectorize.args = "pattern")
-rstList <- rstList[grep2(pattern = paste(2020:2069), x = rstList)]
-rstList <- rstList[grep2(pattern = c("BNU-ESM", "CanESM2", "CSIRO-Mk3-6-0",
-                                     "GFDL-CM3", "inmcm4", "IPSL-CM5A-LR",
-                                     "IPSL-CM5A-MR", "MIROC-ESM-CHEM", "MPI-ESM-LR",
-                                     "MPI-ESM-MR", "NorESM1-M"), x = rstList)]
-df <- data.frame(do.call('rbind', strsplit(as.character(rstList), '_', fixed = TRUE)))
-colnames(df) <- c("Variable", "Time", "D1", "RCP", "D2", "GCM", "Year")
-gcmList <- df$GCM %>% as.character %>% unique
+future <- list.files(path = "//ccafsserver.cgiarad.org/data_climatewizard/AR5_Global_Daily_25k", pattern = "*.nc$", full.names = F)
 
-ownSrc <- "//dapadfs/workspace_cluster_12/Trust"
-own_rcp45_gcmList <- list.dirs(path = paste0(ownSrc, "/gcm_rcp45/bc_0_5deg_lat"), full.names = F, recursive = F)
-own_rcp85_gcmList <- list.dirs(path = paste0(ownSrc, "/gcm_rcp85/bc_0_5deg_lat"), full.names = F, recursive = F)
+
+#gcm1_prec <-  future[grep(pattern = "tasmax_day_BCSD_rcp85_r1i1p1_bcc-csm1-1", x = future)]
+# gcm1_prec <-  future[grep(pattern = "tasmin_day_BCSD_rcp85_r1i1p1_bcc-csm1-1", x = future)]
+# gcm1_prec <-  future[grep(pattern = "pr_day_BCSD_rcp85_r1i1p1_bcc-csm1-1", x = future)]
+
+
+###########################################################################################################
+#gcm2_prec <-  future[grep(pattern = "tasmin_day_BCSD_rcp85_r1i1p1_MIROC-ESM-CHEM", x = future)]
+#gcm2_prec <-  future[grep(pattern = "tasmin_day_BCSD_rcp85_r1i1p1_MIROC-ESM-CHEM", x = future)]
+gcm2_prec <-  future[grep(pattern = "tasmax_day_BCSD_rcp85_r1i1p1_MIROC-ESM-CHEM", x = future)]
 
 
 
 
+###########################################################################################################
+gcm3_prec <-  future[grep(pattern = "tasmin_day_BCSD_rcp85_r1i1p1_BNU-ESM", x = future)]
+gcm3_prec <-  future[grep(pattern = "tasmax_day_BCSD_rcp85_r1i1p1_BNU-ESM", x = future)]
+gcm3_prec <-  future[grep(pattern = "pr_day_BCSD_rcp85_r1i1p1_BNU-ESM", x = future)]
 
-avlb_rst[setdiff(1:length(avlb_rst), grep(pattern = "^pr_day_", x = avlb_rst))]
 
-# Extract data from one year
-tmax <- raster::stack("//ccafsserver.cgiarad.org/data_climatewizard/AR5_Global_Daily_25k/tasmax_day_BCSD_rcp45_r1i1p1_MRI-CGCM3_2043.nc")
-tmax_vx <- velox::velox(tmax)
-pnt <- tmax_vx$getCoordinates()
-colnames(pnt) <- c("x", "y")
-pnt <- data.frame(pnt)
-pnt$x[pnt$x > 180] <- pnt$x[pnt$x > 180] - 360
-rtmp <- readRDS("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/AgMerra_template.RDS")
-rtmp[which(!is.na(rtmp[]))] <- 1
-# pnt_rtmp <- coordinates(rtmp[which(!is.na(rtmp[]))])
-pnt_rtmp <- rasterToPoints(rtmp)
-pnt_rtmp <- pnt_rtmp[,1:2]
-pnt_rtmp <- data.frame(pnt_rtmp)
-pnt_rtmp$cellID <- cellFromXY(object = rtmp, xy = pnt_rtmp)
-pnt$cellID <- cellFromXY(object = rtmp, xy = pnt)
-pnt <- pnt[pnt$cellID %in% pnt_rtmp$cellID,]
-rownames(pnt) <- 1:nrow(pnt)
-pnt$x[pnt$x <= 0] <- pnt$x[pnt$x <= 0] + 360
-vls <- tmax_vx$extract_points(sp = SpatialPoints(pnt[,1:2]))
-vls <- as_data_frame(vls)
-vls <- cbind(pnt, vls)
-vls$x[vls$x > 180] <- vls$x[vls$x > 180] - 360
 
+###########################################################################################################
+gcm4_prec <-  future[grep(pattern = "tasmax_day_BCSD_rcp85_r1i1p1_MPI-ESM-LR", x = future)]
+gcm4_prec <-  future[grep(pattern = "tasmin_day_BCSD_rcp85_r1i1p1_MPI-ESM-LR", x = future)]
+gcm4_prec <-  future[grep(pattern = "pr_day_BCSD_rcp85_r1i1p1_MPI-ESM-LR", x = future)]
+
+###########################################################################################################
+#gcm5_prec <-  future[grep(pattern = "tasmin_day_BCSD_rcp85_r1i1p1_inmcm4.", x = future)]
+gcm5_prec <-  future[grep(pattern = "tasmax_day_BCSD_rcp85_r1i1p1_inmcm4.", x = future)]
+
+
+g <- gcm5_prec[-(1:14)]
+g1 <- g[-(51:length(g))]
+
+
+library(doSNOW)
+library(foreach)
+library(parallel)
+library(doParallel)
+
+cores<- detectCores()
+cl<- makeCluster(cores-20)
+registerDoParallel(cl) 
+
+
+# mylist <- rep(list(NA),50)
+
+system.time(l <- foreach(i=1:50) %dopar% {
+  mylist <- list()
+  root <- "//ccafsserver.cgiarad.org/data_climatewizard/AR5_Global_Daily_25k/"
+  require(dplyr)
+  require(velox)
+  require(raster)
+  require(raster)
+  
+  cat(paste0("procesando tabla:",i,"\n" ))
+  prec <- raster::stack(paste0(root, g[i]))  
+  prec_vx <- velox::velox(prec)
+  pnt <- prec_vx$getCoordinates()
+  colnames(pnt) <- c("x", "y")
+  pnt <- data.frame(pnt)
+  pnt$x[pnt$x > 180] <- pnt$x[pnt$x > 180] - 360
+  rtmp <- readRDS("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/AgMerra_template.RDS")
+  rtmp[which(!is.na(rtmp[]))] <- 1
+  # rtmp[which(!is.na(rtmp[]))] <- 1
+  # pnt_rtmp <- coordinates(rtmp[which(!is.na(rtmp[]))])
+  pnt_rtmp <- rasterToPoints(rtmp)
+  pnt_rtmp <- pnt_rtmp[,1:2]
+  pnt_rtmp <- data.frame(pnt_rtmp)
+  pnt_rtmp$cellID <- cellFromXY(object = rtmp, xy = pnt_rtmp)
+  pnt$cellID <- cellFromXY(object = rtmp, xy = pnt)
+  pnt <- pnt[pnt$cellID %in% pnt_rtmp$cellID,]
+  rownames(pnt) <- 1:nrow(pnt)
+  pnt$x[pnt$x <= 0] <- pnt$x[pnt$x <= 0] + 360
+  vls <- prec_vx$extract_points(sp = SpatialPoints(pnt[,1:2]))
+  vls <- as_data_frame(vls)
+  vls <- cbind(pnt, vls)
+  vls$x[vls$x > 180] <- vls$x[vls$x > 180] - 360
+  vls1<- data.frame(cellID= vls$cellID, lon= vls$x, lat= vls$y, vls[,-3])
+  vls1$x <- NULL 
+  vls1$y <- NULL
+  names(vls1)[4:ncol(vls1)] <- names(prec)
+  names(vls1)[4:ncol(vls1)] <- as.character(gsub(pattern = ".", replacement = "-", x = gsub(pattern = "X", replacement = "", x = names(vls1)[4:ncol(vls1)]), fixed = T))
+  mylist[[i]] <- vls1
+  
+  
+} )
+stopCluster(cl)
+
+l1 <- lapply(2: length(l), function(i){
+  x <- l[[i]]
+  x<- l[[i]][,-(1:3)]
+  return(x)
+})
+tmin  <- do.call(cbind,l1)
+tmin <- cbind(l[[1]], tmin)
+
+
+##Filtro
+
+america <- readRDS("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/_current_climate/agmerra_tmin/tmin_filtered_america.rds")
+africa  <- readRDS("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/_current_climate/agmerra_tmin/tmin_filtered_africa.rds")
+oceania <- readRDS("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/_current_climate/agmerra_tmin/tmin_filtered_oceania.rds")
+asia    <- readRDS("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/_current_climate/agmerra_tmin/tmin_filtered_asia.rds")
+europa  <- readRDS("//dapadfs/Workspace_cluster_9/CWR_pre-breeding/Input_data/_current_climate/agmerra_tmin/tmin_filtered_europa.rds")
+
+
+
+a <- list(america,africa,oceania,asia,europa)
+
+filtro <- lapply(1:length(a), function(i){
+  tabla <- dplyr::filter(tmin, cellID %in% a[[i]]$cellID)
+  tabla1 <- tabla[,-(1:3)]
+  t <- tabla1 -273
+  tab <- cbind(tabla[,(1:3)], t)
+  return(tab)
+})
+
+dapa <-"//dapadfs/Workspace_cluster_9"
+
+
+saveRDS(filtro[[1]], paste0(dapa,"/CWR_pre-breeding/Input_data/_future_climate/rcp85/gcm5/agmerra_tmax/tmax_filtered_america.rds"))
+saveRDS(filtro[[2]], paste0(dapa,"/CWR_pre-breeding/Input_data/_future_climate/rcp85/gcm5/agmerra_tmax/tmax_filtered_africa.rds"))
+saveRDS(filtro[[3]], paste0(dapa,"/CWR_pre-breeding/Input_data/_future_climate/rcp85/gcm5/agmerra_tmax/tmax_filtered_oceania.rds"))
+saveRDS(filtro[[4]], paste0(dapa,"/CWR_pre-breeding/Input_data/_future_climate/rcp85/gcm5/agmerra_tmax/tmax_filtered_asia.rds"))
+saveRDS(filtro[[5]], paste0(dapa,"/CWR_pre-breeding/Input_data/_future_climate/rcp85/gcm5/agmerra_tmax/tmax_filtered_europa.rds"))
+
+##############prec
+
+
+# saveRDS(filtro[[1]], paste0(dapa,"/CWR_pre-breeding/Input_data/_future_climate/rcp85/gcm4/chirps/prec_filtered_america.rds"))
+# saveRDS(filtro[[2]], paste0(dapa,"/CWR_pre-breeding/Input_data/_future_climate/rcp85/gcm4/chirps/prec_filtered_africa.rds"))
+# saveRDS(filtro[[3]], paste0(dapa,"/CWR_pre-breeding/Input_data/_future_climate/rcp85/gcm4/chirps/prec_filtered_oceania.rds"))
+# saveRDS(filtro[[4]], paste0(dapa,"/CWR_pre-breeding/Input_data/_future_climate/rcp85/gcm4/chirps/prec_filtered_asia.rds"))
+# saveRDS(filtro[[5]], paste0(dapa,"/CWR_pre-breeding/Input_data/_future_climate/rcp85/gcm4/chirps/prec_filtered_europa.rds"))
+# # # 
+# # # 
