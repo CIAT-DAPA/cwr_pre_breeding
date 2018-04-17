@@ -1,5 +1,3 @@
-
-index_eggplant_future <- function(continent = "Europa", rcp = "rcp45" ,gcm= "gcm1", ncores = 10 ){
   suppressMessages(if(!require(raster)){install.packages('raster'); library(raster)} else {library(raster)})
   suppressMessages(if(!require(ncdf4)){install.packages('ncdf4'); library(ncdf4)} else {library(ncdf4)})
   suppressMessages(if(!require(maptools)){install.packages('maptools'); library(maptools)} else {library(maptools)})
@@ -31,7 +29,7 @@ index_eggplant_future <- function(continent = "Europa", rcp = "rcp45" ,gcm= "gcm
   }
   
   if(OSys == Linux ){
-  
+  index_eggplant_future <- function(continent = "Europa", rcp = "rcp45" ,gcm= "gcm1", ncores = 10 ){
   require(dplyr)
   output <- paste0(root, "/CWR_pre-breeding/Results/Eggplant/_future/",rcp,"/",gcm,"/Crop_index/Potato_index_drought_", tolower(continent), ".rds")
   if(!file.exists(output)){
@@ -234,9 +232,8 @@ index_eggplant_future <- function(continent = "Europa", rcp = "rcp45" ,gcm= "gcm
   } else {
     cat(">>> Agroclimatic indices have been already calculated ...\n")
   }
-}
-else {
-  
+}}else {
+  index_eggplant_future <- function(continent = "Europa", rcp = "rcp45" ,gcm= "gcm1"){
   output <- paste0(root, "/CWR_pre-breeding/Results/Eggplant/_future/",rcp,"/",gcm,"/Crop_index/Potato_index_drought_", tolower(continent), ".rds")
   if(!file.exists(output)){
     
@@ -452,8 +449,8 @@ else {
     cat(">>> Agroclimatic indices have been already calculated ...\n")
   }
   
-}
-}
+}}
 
-system.time(continent = "Europa", rcp = "rcp85" ,gcm= "gcm1", ncores = 10)
+system.time(continent = "Europa", rcp = "rcp85" ,gcm= "gcm1", ncores = 10) ##linux
+system.time(continent = "Europa", rcp = "rcp85" ,gcm= "gcm1") #windows
 
