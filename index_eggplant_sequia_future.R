@@ -28,7 +28,7 @@
     }
   }
   
-  if(OSys == Linux ){
+  if(OSys == "Linux" ){
   index_eggplant_future <- function(continent = "Europa", rcp = "rcp45" ,gcm= "gcm1", ncores = 10 ){
   require(dplyr)
   output <- paste0(root, "/CWR_pre-breeding/Results/Eggplant/_future/",rcp,"/",gcm,"/Crop_index/Potato_index_drought_", tolower(continent), ".rds")
@@ -451,6 +451,6 @@
   
 }}
 
-system.time(continent = "Europa", rcp = "rcp85" ,gcm= "gcm1", ncores = 10) ##linux
-system.time(continent = "Europa", rcp = "rcp85" ,gcm= "gcm1") #windows
+system.time(index_eggplant_future(continent = "Europa", rcp = "rcp85" ,gcm= "gcm1", ncores = 10)) ##linux
+system.time(index_eggplant_future(continent = "Europa", rcp = "rcp85" ,gcm= "gcm1"))#windows
 

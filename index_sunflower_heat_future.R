@@ -39,7 +39,7 @@ if(OSys == "Linux"){
   }
 }; rm(OSys)
 
-sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp45" ,gcm= "gcm1"){
+sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp85" ,gcm= "gcm1"){
   
   output <- paste0(root, "/CWR_pre-breeding/Results/Sunflower/_future/",rcp,"/",gcm,"/Crop_index/sunflower_crop_indices_", tolower(continent), ".rds")
   if(!file.exists(output)){
@@ -412,7 +412,7 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
         
       }
       return(results)
-    }, mc.cores = 20, mc.preschedule = F))
+    }, mc.cores = ncores, mc.preschedule = F))
     
     tabla <- do.call(rbind, indexes_been)
     saveRDS(tabla, output)
@@ -424,3 +424,12 @@ sunflowerIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp
   }
   
 }
+
+
+######### specific index Sunflower 
+
+setwd("/home/bmora/cwr_pre_breeding")
+source("index_sunflower_heat_future.R") # Please run since here
+continentList <- c("Africa", "America", "Asia", "Europa", "Oceania")
+sunflowerIndicesFuture(continent = continentList[5], ncores = 15, rcp = "rcp85" ,gcm= "gcm1")
+

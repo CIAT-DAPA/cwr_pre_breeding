@@ -1,4 +1,4 @@
-index_potato_future <- function(continent = "Europa", rcp = "rcp85" ,gcm= "gcm1"){
+
   
   
   suppressMessages(if(!require(raster)){install.packages('raster'); library(raster)} else {library(raster)})
@@ -38,9 +38,8 @@ index_potato_future <- function(continent = "Europa", rcp = "rcp85" ,gcm= "gcm1"
   }; rm(OSys)
   
   
-  
-  require(dplyr)
-  
+
+  index_potato_future <- function(continent = "Europa", rcp = "rcp85" ,gcm= "gcm1"){
   output <- paste0(root, "/CWR_pre-breeding/Results/Potato/_future/",rcp,"/",gcm,"/Crop_index/Potato_index_drought_", tolower(continent), ".rds")
   if(!file.exists(output)){
     
