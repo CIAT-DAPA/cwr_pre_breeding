@@ -40,8 +40,7 @@ if(OSys == "Linux"){
 }; rm(OSys)
 
 
-
-waterbalance<-  function(continent= "Oceania", ncores= 10 ){
+rbalance<-  function(continent= "Africa"){
   
   output <- paste0(root, "/CWR_pre-breeding/Results/Potato/Hydric_balance/potato_water_indices_", tolower(continent), ".rds")
   if(!file.exists(output)){
@@ -53,15 +52,25 @@ waterbalance<-  function(continent= "Oceania", ncores= 10 ){
     cpc <- unique(prec_filter$cellID)
     
     
-    wb <- mclapply(1 : length(cpc), function(i){
+    
+    system.time(wb <- lapply(1 :length(cpc), function(i){# 
+      require( tidyr)
       cat(paste0("looking for coordinate: ", i, "\n"))
       wb <- list.files(path = paste0(root, "/CWR_pre-breeding/Input_data/_soils/Water_balance/",tolower(continent)) , paste0(cpc[i],".rds"), full.names = T)
       wb1 <- lapply(wb, readRDS)
       wb1<- do.call(rbind,wb1)
-      return(wb1)
-    },mc.cores = ncores, mc.preschedule = F)
+      wb1 <- data.frame(Date = row.names(wb1), cellID = wb1$cellID, lon= wb1$lon, lat= wb1$lat, ERATIO= wb1$ERATIO)
+      row.names(wb1)<- NULL
+      
+      if(dim(wb1)==0){
+        cat(paste0("archivo malo for coordinate: ", i, "\n"))
+        return(wb1)
+      }else{
+        wb1 <- wb1 %>% spread("Date","ERATIO")
+        return(wb1)}
+    }))
     
-    
+    wb <- do.call(rbind, wb)
     cat(">>> Loading crop cycle data ...\n")
     
     # Planting dates
@@ -72,90 +81,87 @@ waterbalance<-  function(continent= "Oceania", ncores= 10 ){
     harvest_rf_ggcmi <- harvest_rf_ggcmi[[1]]
     
     
-    cat(">>> Calculating indices ...\n")
+    # Extract important dates
+    wb$Planting <- raster::extract(x = planting_rf_ggcmi, y = wb[,c("lon", "lat")]);
+    wb$Harvest  <- raster::extract(x = harvest_rf_ggcmi, y = wb[,c("lon", "lat")]); 
+    wb$Duration <- ifelse(test = wb$Planting < wb$Harvest, yes = "One year", no = "Two years")
+    wb$Harvest[which(wb$Harvest == -99)] <- NA
+    wb<- na.omit(wb)
+    wb$Harvest <- round(wb$Harvest)
+    wb$Planting <- round(wb$Planting)
     
-    index <-  mclapply(1:length(wb), function(j){
-      iwb <- wb[[j]]
-      iwb$SRAD <- NULL
-      iwb$TMIN <- NULL
-      iwb$TMAX <- NULL
-      iwb$RAIN <- NULL
-      iwb$CUM_RAIN <- NULL
-      iwb$DEMAND <- NULL
-      iwb$RUNOFF <- NULL
-      iwb$AVAIL <- NULL
-      iwb$ETMAX <- NULL
-      iwb$Planting <- raster::extract(x = planting_rf_ggcmi, y = iwb[,c("lon", "lat")])
-      iwb$Harvest <- raster::extract(x = harvest_rf_ggcmi, y = iwb[,c("lon", "lat")])
-      iwb$Duration <- ifelse(test =iwb$Planting < iwb$Harvest , yes = "One year", no = "Two years")
-      
-      duration <- unique(iwb$Duration)
-      start <-  unique(iwb$Planting)
-      end <- unique(iwb$Harvest)
-      
-      
+    test<- wb[which(wb$Duration =="Two years"), ]
+    
+    
+    
+    library(doSNOW)
+    library(foreach)
+    library(parallel)
+    library(doParallel)
+    
+    cores<- detectCores()
+    cl<- makeCluster(cores-18)
+    registerDoParallel(cl) 
+    
+    system.time(l <- foreach(i=1:nrow(wb)) %dopar% {
+      mylist <- list()
+      duration <- wb$Duration[i]
+      start <- wb$Planting[i]
+      end <- wb$Harvest[i]
+      time.serie <- wb[i, 1:(ncol(wb)-3)]
       if(duration == "One year"){
+        require(dplyr)
+        require(tidyr)
+        require(compiler)
         
-        iwb$Date<- row.names(iwb)
-        row.names(iwb)<- NULL
-        
-        iwb$condition <- NA
-        iwb$condition[which(iwb$ERATIO < 0.5 )] <- 1
-        iwb$condition[which(iwb$ERATIO >= 0.5 )] <- 0
-        
-        
-        iwb$Year <- lubridate::year(as.Date(iwb$Date))
-        iwb$Yday <- lubridate::yday(as.Date(iwb$Date))
-        iwb <- iwb%>% group_by(Year) %>% dplyr::filter(Yday >= start+70 & Yday <= end)
-        
+        X <- time.serie
+        X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
+        X$Year <- lubridate::year(as.Date(X$Date))
+        X$Yday <- lubridate::yday(as.Date(X$Date))
+        X <- X %>% group_by(Year) %>% dplyr::filter(Yday >= start +70& Yday <= end)
         
         # Drought
-        dr_stress<- function(condition, p_thresh = 1){
-          days <- sum(condition >= 1)
+        dr_stress<- function(wb, p_thresh = 0.5){
+          days <- sum(wb < 0.5)
         }
         dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-        drought <- iwb %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(drought = dr_stressCMP(condition, p_thresh= 1))
-        
+        drought <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(drought = dr_stressCMP(Value, p_thresh= 0.5))
         drought <- drought %>% as.data.frame
         names(drought)[2] <- "Value"; drought$Variable <- "drought"
+        drought <- data.frame(cellID= unique(X$cellID), drought)
         
-        drought <- data.frame(cellID= unique(iwb$cellID), drought)
-        return(drought)
         
       }else{
-        
-        iwb$Date<- row.names(iwb)
-        row.names(iwb)<- NULL
-        iwb$con<- NA
-        iwb$condition[which(iwb$ERATIO < 0.5 )] <- 1
-        iwb$condition[which(iwb$ERATIO >= 0.5 )] <- 0
+        require(dplyr)
+        require(tidyr)
+        require(compiler)
         
         
-        
-        iwb$Year <- lubridate::year(as.Date(iwb$Date))
-        iwb$Yday <- lubridate::yday(as.Date(iwb$Date))
-        
-        iwb <- iwb %>% filter(Yday %in% c(start:365, 1:end))
-        iwb <- iwb[-(1:(end)),]
-        iwb <- iwb[-((nrow(iwb)-(365-start)): nrow(iwb)),]
-        iwb$condition <- NA
-        for(j in 1:nrow(iwb)){
-          iwb$condition[j] <- iwb$Yday[j+1] - iwb$Yday[j]
-        }
-        c <- c(unique(iwb$condition))
-        iwb$condition[which(is.na(iwb$condition))] <- c[3]
-        chngs <- which(iwb$condition == c[3])
+        X <- time.serie
+        X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
+        X$Year <- lubridate::year(as.Date(X$Date))
+        X$Yday <- lubridate::yday(as.Date(X$Date))
+        X <- X %>% filter(Yday %in% c(258:365, 1:end))
+        X <- X[-(1:(end)),]
+        X <- X[-((nrow(X)-(365-start)): nrow(X)),]
+        X$condition <- NA
+        try(for(j in 1:nrow(X)){
+          X$condition[j] <- X$Yday[j+1] - X$Yday[j]
+        })
+        c <- c(unique(X$condition))
+        X$condition[which(is.na(X$condition))] <- c[3]
+        chngs <- which(X$condition == c[3])
         for(j in 1:length(chngs)){
           if(j == 1){
-            iwb$condition2[1:chngs[j]] <- j
+            X$condition2[1:chngs[j]] <- j
           } else {
-            iwb$condition2[(chngs[j-1]+1):(chngs[j])] <- j
+            X$condition2[(chngs[j-1]+1):(chngs[j])] <- j
           }
         }
-        iwb$condition2[is.na(iwb$condition2)] <- length(chngs)
-        iwb$condition <- NULL
-        names(iwb)[ncol(iwb)] <- "condition"
-        rownames(iwb)<- 1:nrow(iwb)
+        X$condition2[is.na(X$condition2)] <- length(chngs)
+        X$condition <- NULL
+        names(X)[ncol(X)] <- "condition"
+        rownames(X)<- 1:nrow(X)
         
         corte <- c(1:29)
         lista <- lapply(1:length(corte), function(i){
@@ -164,29 +170,32 @@ waterbalance<-  function(continent= "Oceania", ncores= 10 ){
         })
         
         tab <- lapply(1:length(lista), function(i){
-          tabla <-lista[[i]][(70:end),]
+          tabla <-lista[[i]][(70:nrow(lista[[i]])),]
           return(tabla)
         })
-        iwb <- do.call(rbind,tab)
-        iwb <- na.omit(iwb)
+        X <- do.call(rbind,tab)
+        X <- na.omit(X)
+        
         
         # Drought
-        dr_stress<- function(condition, p_thresh = 1){
-          days <- sum(condition >= 1)
+        dr_stress<- function(wb, p_thresh = 0.5){
+          days <- sum(wb < 0.5)
         }
         dr_stressCMP <- cmpfun(dr_stress); rm(dr_stress)
-        drought <- iwb %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(drought = dr_stressCMP(condition, p_thresh= 1))
-        
+        drought <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(drought = dr_stressCMP(Value, p_thresh= 0.5))
         drought <- drought %>% as.data.frame
         names(drought)[2] <- "Value"; drought$Variable <- "drought"
+        drought <- data.frame(cellID= unique(X$cellID), drought)
         
-        drought <- data.frame(cellID= unique(iwb$cellID), drought)
-        return(drought)
+        
       }
       
-    },mc.cores = ncores, mc.preschedule = F)
+      mylist[[i]] <- drought
+      
+    } )
+    stopCluster(cl)
     
-    tabla <- do.call(rbind, index)
+    tabla <- do.call(rbind, l)
     saveRDS(tabla, output)
     cat(">>> Results saved successfully ...\n")
     return(cat("Process done\n"))
@@ -196,3 +205,5 @@ waterbalance<-  function(continent= "Oceania", ncores= 10 ){
     cat(">>> Indices have been already calculated ...\n")
   }
 }
+
+system.time( rbalance(continent = "America"))

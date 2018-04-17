@@ -1,51 +1,49 @@
-# CWR pre-breeding characterising testing environments: calculating general indices
-# Authors: B. Mora & H. Achicanoy
-# CIAT, 2018
-
-# Load packages
-suppressMessages(if(!require(raster)){install.packages('raster'); library(raster)} else {library(raster)})
-suppressMessages(if(!require(ncdf4)){install.packages('ncdf4'); library(ncdf4)} else {library(ncdf4)})
-suppressMessages(if(!require(maptools)){install.packages('maptools'); library(maptools)} else {library(maptools)})
-suppressMessages(if(!require(ff)){install.packages('ff'); library(ff)} else {library(ff)})
-suppressMessages(if(!require(data.table)){install.packages('data.table'); library(data.table)} else {library(data.table)})
-suppressMessages(if(!require(miscTools)){install.packages('miscTools'); library(miscTools)} else {library(miscTools)})
-suppressMessages(if(!require(rgdal)){install.packages('rgdal'); library(rgdal)} else {library(rgdal)})
-suppressMessages(if(!require(foreach)){install.packages('foreach'); library(foreach)} else {library(foreach)})
-suppressMessages(if(!require(mgcv)){install.packages('mgcv'); library(mgcv)} else {library(mgcv)})
-suppressMessages(if(!require(tidyverse)){install.packages('tidyverse'); library(tidyverse)} else {library(tidyverse)})
-suppressMessages(if(!require(mapdata)){install.packages('mapdata'); library(mapdata)} else {library(mapdata)})
-suppressMessages(if(!require(FactoMineR)){install.packages('FactoMineR'); library(FactoMineR)} else {library(FactoMineR)})
-suppressMessages(if(!require(FactoClass)){install.packages('FactoClass'); library(FactoClass)} else {library(FactoClass)})
-suppressMessages(if(!require(ade4)){install.packages('ade4'); library(ade4)} else {library(ade4)})
-suppressMessages(if(!require(xtable)){install.packages('xtable'); library(xtable)} else {library(xtable)})
-suppressMessages(if(!require(ggdendro)){install.packages('ggdendro'); library(ggdendro)} else {library(ggdendro)})
-suppressMessages(if(!require(compiler)){install.packages('compiler'); library(compiler)} else {library(compiler)})
-suppressMessages(if(!require(ggthemes)){install.packages('ggthemes'); library(ggthemes)} else {library(ggthemes)})
-suppressMessages(if(!require(cluster)){install.packages('cluster'); library(cluster)} else {library(cluster)})
-suppressMessages(if(!require(googlesheets)){install.packages("googlesheets");library(googlesheets)}else{library(googlesheets)})
-suppressMessages(if(!require(RColorBrewer)){install.packages("RColorBrewer");library(RColorBrewer)}else{library(RColorBrewer)})
-suppressMessages(if(!require(caTools)){install.packages("caTools");library(caTools)}else{library(caTools)})
-library(parallel)
-
-# Path settings
-OSys <- Sys.info(); OSys <- OSys[names(OSys)=="sysname"]
-if(OSys == "Linux"){
-  root <- "/mnt/workspace_cluster_9"
-  base <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/AgMerra_template.RDS"))
-} else {
-  if(OSys == "Windows"){
-    root <- "//dapadfs/Workspace_cluster_9"
-    base <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/AgMerra_template.RDS"))
-  }
-}; rm(OSys)
-
-index_potato <- function(continent = "Oceania", ncores = 15){
+index_finger_millet <- function(continent = "Europa", ncores=20){
+  suppressMessages(if(!require(raster)){install.packages('raster'); library(raster)} else {library(raster)})
+  suppressMessages(if(!require(ncdf4)){install.packages('ncdf4'); library(ncdf4)} else {library(ncdf4)})
+  suppressMessages(if(!require(maptools)){install.packages('maptools'); library(maptools)} else {library(maptools)})
+  suppressMessages(if(!require(ff)){install.packages('ff'); library(ff)} else {library(ff)})
+  suppressMessages(if(!require(data.table)){install.packages('data.table'); library(data.table)} else {library(data.table)})
+  suppressMessages(if(!require(miscTools)){install.packages('miscTools'); library(miscTools)} else {library(miscTools)})
+  suppressMessages(if(!require(rgdal)){install.packages('rgdal'); library(rgdal)} else {library(rgdal)})
+  suppressMessages(if(!require(foreach)){install.packages('foreach'); library(foreach)} else {library(foreach)})
+  suppressMessages(if(!require(mgcv)){install.packages('mgcv'); library(mgcv)} else {library(mgcv)})
+  suppressMessages(if(!require(tidyverse)){install.packages('tidyverse'); library(tidyverse)} else {library(tidyverse)})
+  suppressMessages(if(!require(mapdata)){install.packages('mapdata'); library(mapdata)} else {library(mapdata)})
+  suppressMessages(if(!require(FactoMineR)){install.packages('FactoMineR'); library(FactoMineR)} else {library(FactoMineR)})
+  suppressMessages(if(!require(FactoClass)){install.packages('FactoClass'); library(FactoClass)} else {library(FactoClass)})
+  suppressMessages(if(!require(ade4)){install.packages('ade4'); library(ade4)} else {library(ade4)})
+  suppressMessages(if(!require(xtable)){install.packages('xtable'); library(xtable)} else {library(xtable)})
+  suppressMessages(if(!require(ggdendro)){install.packages('ggdendro'); library(ggdendro)} else {library(ggdendro)})
+  suppressMessages(if(!require(compiler)){install.packages('compiler'); library(compiler)} else {library(compiler)})
+  suppressMessages(if(!require(ggthemes)){install.packages('ggthemes'); library(ggthemes)} else {library(ggthemes)})
+  suppressMessages(if(!require(cluster)){install.packages('cluster'); library(cluster)} else {library(cluster)})
+  suppressMessages(if(!require(googlesheets)){install.packages("googlesheets");library(googlesheets)}else{library(googlesheets)})
+  suppressMessages(if(!require(RColorBrewer)){install.packages("RColorBrewer");library(RColorBrewer)}else{library(RColorBrewer)})
+  suppressMessages(if(!require(caTools)){install.packages("caTools");library(caTools)}else{library(caTools)})
+  library(parallel)
   
-  output <- paste0(root, "/CWR_pre-breeding/Results/Potato/Index_drought/Potato_index_drought_", tolower(continent), ".rds")
+  # Path settings
+  OSys <- Sys.info(); OSys <- OSys[names(OSys)=="sysname"]
+  if(OSys == "Linux"){
+    root <- "/mnt/workspace_cluster_9"
+    base <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/AgMerra_template.RDS"))
+  } else {
+    if(OSys == "Windows"){
+      root <- "//dapadfs/Workspace_cluster_9"
+      base <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/AgMerra_template.RDS"))
+    }
+  }; rm(OSys)
+  
+  
+  
+  require(dplyr)
+  
+  output <- paste0(root, "/CWR_pre-breeding/Results/Finger_millet/Index_drought/Finger_millet_index_drought_", tolower(continent), ".rds")
   if(!file.exists(output)){
     
     # Load climate data
-    cat(">>> Starting process for potato in", continent, "continent\n\n")
+    cat(">>> Starting process for Finger_millet in", continent, "continent\n\n")
     cat(">>> Loading climate data ...\n")
     prec <- readRDS(paste0(root, '/CWR_pre-breeding/Input_data/_current_climate/chirps/prec_filtered_', tolower(continent), '.rds'))
     
@@ -55,10 +53,10 @@ index_potato <- function(continent = "Oceania", ncores = 15){
     cat(">>> Loading crop cycle data ...\n")
     
     # Planting dates
-    planting_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Potatoes_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "planting day")
+    planting_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Millet_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "planting day")
     planting_rf_ggcmi <- planting_rf_ggcmi[[1]]
     # Harversting dates
-    harvest_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Potatoes_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "harvest day")
+    harvest_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Millet_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "harvest day")
     harvest_rf_ggcmi <- harvest_rf_ggcmi[[1]]
     
     
@@ -71,16 +69,22 @@ index_potato <- function(continent = "Oceania", ncores = 15){
     
     # Restricting study area to crop area
     cat(">>> Restricting study area to crop area ...\n")
-    crop_area  <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/_crop_presence/Potato/database/area_base.rds"))
+    crop_area  <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/_crop_presence/Finger_millet/database/area_base.rds"))
     prec <- dplyr::filter(prec, prec$cellID %in% crop_area$cellID)
     prec <- prec[!is.na(prec$cellID),]
     
+    prec$Harvest[which(prec$Harvest == -99)] <- NA
+    prec<- na.omit(prec)
+    prec$Harvest <- round(prec$Harvest)
+    prec$Planting <- round(prec$Planting)
     
-    test<- prec[which(prec$Duration =="Two years"), ]
     
-    require(parallel)
-    system.time(indexes_drought <- mclapply(1:nrow(prec), function(i){  ### nrow(tmax)
-      cat(paste0("Processed pixel:", i, "\n"))
+    
+    
+    test<- prec[which(prec$Duration =="One year"), ]
+    
+    system.time(indexes_drought <- mclapply(1:nrow(prec),  function(i) {### nrow(tmax)
+      
       # Parameters
       duration <- prec$Duration[i]
       start <- prec$Planting[i]
@@ -99,16 +103,9 @@ index_potato <- function(continent = "Oceania", ncores = 15){
         X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
         X$Year <- lubridate::year(as.Date(X$Date))
         X$Yday <- lubridate::yday(as.Date(X$Date))
-        X <- X %>% group_by(Year) %>% dplyr::filter(Yday >= start +70& Yday <= end)
+        X <- X %>% group_by(Year) %>% dplyr::filter(Yday >= start & Yday <= end)
         
         # TOTRAIN: Total precipitation
-        X <- time.serie; rm(time.serie)
-        X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
-        X$Year <- lubridate::year(as.Date(X$Date))
-        X$Yday <- lubridate::yday(as.Date(X$Date))
-        X <- X %>% filter(Yday %in% c(start:365, 1:end))
-        X <- X[-(1:(end)),]
-        X <- X[-((nrow(X)-(365-start)): nrow(X)),]
         
         totrain <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(TOTRAIN = sum(Value))
         totrain <- totrain %>% as.data.frame
@@ -120,7 +117,7 @@ index_potato <- function(continent = "Oceania", ncores = 15){
         
         prec_optimal <- totrain
         prec_optimal$con <- NA
-        prec_optimal$con <- ifelse(prec_optimal$Value>350  && prec_optimal$Value < 400, yes = 1, no = 0)
+        prec_optimal$con <- ifelse(prec_optimal$Value>500  && prec_optimal$Value < 900, yes = 1, no = 0)
         prec_optimal <- data.frame(Year = prec_optimal$Year, Value= prec_optimal$con, Variable= "prec_optimal")
         
         # 2.   lack_prec <  250 
@@ -128,7 +125,7 @@ index_potato <- function(continent = "Oceania", ncores = 15){
         
         lack_prec <- totrain
         lack_prec$con <- NA
-        lack_prec$con <- ifelse(test = lack_prec$Value < 250 , yes = 1, no = 0)
+        lack_prec$con <- ifelse(test = lack_prec$Value < 350 , yes = 1, no = 0)
         lack_prec <- data.frame(Year = lack_prec$Year, Value= lack_prec$con, Variable= "lack_prec")
         
         # 3. CDD: Drought spell: Maximum number of consecutive dry days (i.e. with precipitation < 1 mm day-1)
@@ -149,6 +146,7 @@ index_potato <- function(continent = "Oceania", ncores = 15){
         
         # Putting all results together
         results <- data.frame(cellID = unique(X$cellID), rbind(prec_optimal, lack_prec, cdd, p_95))
+        
         
       } else {
         
@@ -187,22 +185,11 @@ index_potato <- function(continent = "Oceania", ncores = 15){
           return(tablas)  
         })
         
-        tab <- lapply(1:length(lista), function(i){
-          tabla <-lista[[i]][(70:nrow(lista[[i]])),]
-          return(tabla)
-        })
-        X <- do.call(rbind,tab)
+        
+        X <- do.call(rbind,lista)
         X <- na.omit(X)
         
         # TOTRAIN: Total precipitation
-        X <- time.serie; rm(time.serie)
-        X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
-        X$Year <- lubridate::year(as.Date(X$Date))
-        X$Yday <- lubridate::yday(as.Date(X$Date))
-        X <- X %>% filter(Yday %in% c(start:365, 1:end))
-        X <- X[-(1:(end)),]
-        X <- X[-((nrow(X)-(365-start)): nrow(X)),]
-        
         totrain <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(TOTRAIN = sum(Value))
         totrain <- totrain %>% as.data.frame
         names(totrain)[2] <- "Value"; totrain$Variable <- "TOTRAIN"
@@ -213,7 +200,7 @@ index_potato <- function(continent = "Oceania", ncores = 15){
         
         prec_optimal <- totrain
         prec_optimal$con <- NA
-        prec_optimal$con <- ifelse(prec_optimal$Value>350  && prec_optimal$Value < 400, yes = 1, no = 0)
+        prec_optimal$con <- ifelse(prec_optimal$Value>500  && prec_optimal$Value < 900, yes = 1, no = 0)
         prec_optimal <- data.frame(Year = prec_optimal$Year, Value= prec_optimal$con, Variable= "prec_optimal")
         
         # 2.   lack_prec <  250 
@@ -221,7 +208,7 @@ index_potato <- function(continent = "Oceania", ncores = 15){
         
         lack_prec <- totrain
         lack_prec$con <- NA
-        lack_prec$con <- ifelse(test = lack_prec$Value < 250 , yes = 1, no = 0)
+        lack_prec$con <- ifelse(test = lack_prec$Value < 350 , yes = 1, no = 0)
         lack_prec <- data.frame(Year = lack_prec$Year, Value= lack_prec$con, Variable= "lack_prec")
         
         # 3. CDD: Drought spell: Maximum number of consecutive dry days (i.e. with precipitation < 1 mm day-1)
@@ -244,19 +231,21 @@ index_potato <- function(continent = "Oceania", ncores = 15){
         results <- data.frame(cellID = unique(X$cellID), rbind(prec_optimal, lack_prec, cdd, p_95))
         
       }
-    }
+      
+      return(results)
+      
+    },mc.cores = ncores, mc.preschedule = F ))
+    tabla <- do.call(rbind, indexes_drought)
+    saveRDS(tabla, output)
+    cat(">>> Results saved successfully ...\n")
     
-    return(results)
+    return(cat("Process done\n"))
     
-  }, mc.cores = ncores, mc.preschedule = F)
-  tabla <- do.call(rbind, general_indices)
-  saveRDS(tabla, output)
-  cat(">>> Results saved successfully ...\n")
+  } else {
+    cat(">>> Agroclimatic indices have been already calculated ...\n")
+  }
   
-  return(cat("Process done\n"))
-  
-} else {
-  cat(">>> Agroclimatic indices have been already calculated ...\n")
 }
 
-}
+
+

@@ -38,7 +38,7 @@ africa <-  readRDS(paste0(root, "/CWR_pre-breeding/Results/",crop,"/Crop_indices
 america<-    readRDS(paste0(root, "/CWR_pre-breeding/Results/",crop,"/Crop_indices/",tolower(crop),"_crop_indices_america.rds"))
 asia<-      readRDS(paste0(root, "/CWR_pre-breeding/Results/",crop,"/Crop_indices/",tolower(crop),"_crop_indices_asia.rds"))
 europa<-    readRDS(paste0(root, "/CWR_pre-breeding/Results/",crop,"/Crop_indices/",tolower(crop),"_crop_indices_europa.rds"))
-oceania<-   readRDS(paste0(root, "/CWR_pre-breeding/Results/",crop,"/Crop_indices/",tolower(crop),"_crop_indices_asia.rds"))
+oceania<-   readRDS(paste0(root, "/CWR_pre-breeding/Results/",crop,"/Crop_indices/",tolower(crop),"_crop_indices_oceania.rds"))
 
 variable <- c(as.character(unique(america$Variable)))
 

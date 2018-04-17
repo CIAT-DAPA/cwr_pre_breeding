@@ -40,7 +40,7 @@ if(OSys == "Linux"){
 }; rm(OSys)
 
 CarrotIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp45" ,gcm= "gcm1"){
-  output <- paste0(root, "/CWR_pre-breeding/Results/Carrot/_future/",rcp,"/",gcm,"Crop_index/carrot_crop_indices_", tolower(continent), ".rds")
+  output <- paste0(root, "/CWR_pre-breeding/Results/Carrot/_future/",rcp,"/",gcm,"/Crop_index/carrot_crop_indices_", tolower(continent), ".rds")
   if(!file.exists(output)){
     
     
