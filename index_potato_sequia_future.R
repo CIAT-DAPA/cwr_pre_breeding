@@ -78,6 +78,11 @@
     prec<- na.omit(prec)
     prec$Harvest <- round(prec$Harvest)
     prec$Planting <- round(prec$Planting)
+    prec$Harvest[which(prec$Harvest == 0)] <- NA
+    prec$Planting[which(prec$Harvest == 0)] <- NA
+    prec$Harvest[which(prec$Harvest == -99)] <- NA
+    prec$Planting[which(prec$Harvest == -99)] <- NA
+    
     
     
     test<- prec[which(prec$Duration =="Two years"), ]

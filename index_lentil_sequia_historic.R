@@ -75,6 +75,10 @@ index_lentil<- function(continent = "Oceania"){
     crop_area  <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/_crop_presence/Lentil/database/area_base.rds"))
     prec <- dplyr::filter(prec, prec$cellID %in% crop_area$cellID)
     prec <- prec[!is.na(prec$cellID),]
+    prec$Harvest[which(prec$Harvest == 0)] <- NA
+    prec$Planting[which(prec$Harvest == 0)] <- NA
+    prec$Harvest[which(prec$Harvest == -99)] <- NA
+    prec$Planting[which(prec$Harvest == -99)] <- NA
     
     
     test<- prec[which(prec$Duration =="Two years"), ]

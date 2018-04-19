@@ -75,6 +75,11 @@ index_lentil_future<- function(continent = "Africa", rcp = "rcp85" ,gcm= "gcm4")
     prec <- dplyr::filter(prec, prec$cellID %in% crop_area$cellID)
     prec <- prec[!is.na(prec$cellID),]
     
+    prec$Harvest[which(prec$Harvest == 0)] <- NA
+    prec$Planting[which(prec$Harvest == 0)] <- NA
+    prec$Harvest[which(prec$Harvest == -99)] <- NA
+    prec$Planting[which(prec$Harvest == -99)] <- NA
+    
     
     test<- prec[which(prec$Duration =="Two years"), ]
     library(doSNOW)
