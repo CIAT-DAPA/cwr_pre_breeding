@@ -40,7 +40,7 @@ if(OSys == "Linux"){
 }; rm(OSys)
 
 index_lentil_future<- function(continent = "Africa", rcp = "rcp85" ,gcm= "gcm4"){
-  output <- paste0(root, "/CWR_pre-breeding/Results/Lentil_future/",rcp,"/",gcm,"/Crop_index/lentil_index_drought_", tolower(continent), ".rds")
+  output <- paste0(root, "/CWR_pre-breeding/Results/Lentil/_future/",rcp,"/",gcm,"/Crop_index/lentil_index_drought_", tolower(continent), ".rds")
   if(!file.exists(output)){
     
     # Load climate data
