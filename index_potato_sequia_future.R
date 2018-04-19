@@ -88,7 +88,7 @@
     library(doParallel)
     
     cores<- detectCores()
-    cl<- makeCluster(cores-22)
+    cl<- makeCluster(cores-18)
     registerDoParallel(cl) 
     
     system.time(indexes_drought <- foreach(i=1:nrow(prec)) %dopar% { ### nrow(tmax)

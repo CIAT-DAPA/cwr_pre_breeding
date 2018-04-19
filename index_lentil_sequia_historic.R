@@ -39,13 +39,13 @@ if(OSys == "Linux"){
   }
 }; rm(OSys)
 
-index_potato <- function(continent = "Oceania", ncores = 10){
+index_lentil<- function(continent = "Oceania"){
   
-  output <- paste0(root, "/CWR_pre-breeding/Results/Potato/Index_drought/Potato_index_drought_", tolower(continent), ".rds")
+  output <- paste0(root, "/CWR_pre-breeding/Results/Lentil/Index_drought/lentil_index_drought_", tolower(continent), ".rds")
   if(!file.exists(output)){
     
     # Load climate data
-    cat(">>> Starting process for potato in", continent, "continent\n\n")
+    cat(">>> Starting process for lentil in", continent, "continent\n\n")
     cat(">>> Loading climate data ...\n")
     prec <- readRDS(paste0(root, '/CWR_pre-breeding/Input_data/_current_climate/chirps/prec_filtered_', tolower(continent), '.rds'))
     
@@ -55,10 +55,11 @@ index_potato <- function(continent = "Oceania", ncores = 10){
     cat(">>> Loading crop cycle data ...\n")
     
     # Planting dates
-    planting_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Potatoes_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "planting day")
+    planting_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Pulses_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "planting day")
     planting_rf_ggcmi <- planting_rf_ggcmi[[1]]
     # Harversting dates
-    harvest_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Potatoes_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "harvest day")
+    harvest_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Pulses_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "harvest day")
+    harvest_rf_ggcmi <- harvest_rf_ggcmi[[1]]
     harvest_rf_ggcmi <- harvest_rf_ggcmi[[1]]
     
     
@@ -71,16 +72,23 @@ index_potato <- function(continent = "Oceania", ncores = 10){
     
     # Restricting study area to crop area
     cat(">>> Restricting study area to crop area ...\n")
-    crop_area  <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/_crop_presence/Potato/database/area_base.rds"))
+    crop_area  <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/_crop_presence/Lentil/database/area_base.rds"))
     prec <- dplyr::filter(prec, prec$cellID %in% crop_area$cellID)
     prec <- prec[!is.na(prec$cellID),]
     
     
     test<- prec[which(prec$Duration =="Two years"), ]
+    library(doSNOW)
+    library(foreach)
+    library(parallel)
+    library(doParallel)
     
-    require(parallel)
-    system.time(indexes_drought <- mclapply(1:nrow(prec), function(i){  ### nrow(tmax)
-      cat(paste0("Processed pixel:", i, "\n"))
+    cores<- detectCores()
+    cl<- makeCluster(cores-18)
+    registerDoParallel(cl) 
+    
+    system.time(indexes_drought <- foreach(i=1:nrow(prec)) %dopar% {  ### nrow(tmax)
+      mylist <- list()      
       # Parameters
       duration <- prec$Duration[i]
       start <- prec$Planting[i]
@@ -99,10 +107,10 @@ index_potato <- function(continent = "Oceania", ncores = 10){
         X <- X %>% gather(key = Date, value = Value, -(cellID:lat))
         X$Year <- lubridate::year(as.Date(X$Date))
         X$Yday <- lubridate::yday(as.Date(X$Date))
-        X <- X %>% group_by(Year) %>% dplyr::filter(Yday >= start +70& Yday <= end)
+        X <- X %>% group_by(Year) %>% dplyr::filter(Yday >= start & Yday <= end)
         
         # TOTRAIN: Total precipitation
-               totrain <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(TOTRAIN = sum(Value))
+        totrain <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(TOTRAIN = sum(Value))
         totrain <- totrain %>% as.data.frame
         names(totrain)[2] <- "Value"; totrain$Variable <- "TOTRAIN"
         
@@ -112,7 +120,7 @@ index_potato <- function(continent = "Oceania", ncores = 10){
         
         prec_optimal <- totrain
         prec_optimal$con <- NA
-        prec_optimal$con <- ifelse(prec_optimal$Value>350  && prec_optimal$Value < 400, yes = 1, no = 0)
+        prec_optimal$con <- ifelse(prec_optimal$Value>350  && prec_optimal$Value < 550, yes = 1, no = 0)
         prec_optimal <- data.frame(Year = prec_optimal$Year, Value= prec_optimal$con, Variable= "prec_optimal")
         
         # 2.   lack_prec <  250 
@@ -120,7 +128,7 @@ index_potato <- function(continent = "Oceania", ncores = 10){
         
         lack_prec <- totrain
         lack_prec$con <- NA
-        lack_prec$con <- ifelse(test = lack_prec$Value < 250 , yes = 1, no = 0)
+        lack_prec$con <- ifelse(test = lack_prec$Value < 300 , yes = 1, no = 0)
         lack_prec <- data.frame(Year = lack_prec$Year, Value= lack_prec$con, Variable= "lack_prec")
         
         # 3. CDD: Drought spell: Maximum number of consecutive dry days (i.e. with precipitation < 1 mm day-1)
@@ -179,15 +187,10 @@ index_potato <- function(continent = "Oceania", ncores = 10){
           return(tablas)  
         })
         
-        tab <- lapply(1:length(lista), function(i){
-          tabla <-lista[[i]][(70:nrow(lista[[i]])),]
-          return(tabla)
-        })
-        X <- do.call(rbind,tab)
+        X <- do.call(rbind,lista)
         X <- na.omit(X)
         
         # TOTRAIN: Total precipitation
-       
         totrain <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(TOTRAIN = sum(Value))
         totrain <- totrain %>% as.data.frame
         names(totrain)[2] <- "Value"; totrain$Variable <- "TOTRAIN"
@@ -198,7 +201,7 @@ index_potato <- function(continent = "Oceania", ncores = 10){
         
         prec_optimal <- totrain
         prec_optimal$con <- NA
-        prec_optimal$con <- ifelse(prec_optimal$Value>350  && prec_optimal$Value < 400, yes = 1, no = 0)
+        prec_optimal$con <- ifelse(prec_optimal$Value>350  && prec_optimal$Value < 550, yes = 1, no = 0)
         prec_optimal <- data.frame(Year = prec_optimal$Year, Value= prec_optimal$con, Variable= "prec_optimal")
         
         # 2.   lack_prec <  250 
@@ -206,7 +209,7 @@ index_potato <- function(continent = "Oceania", ncores = 10){
         
         lack_prec <- totrain
         lack_prec$con <- NA
-        lack_prec$con <- ifelse(test = lack_prec$Value < 250 , yes = 1, no = 0)
+        lack_prec$con <- ifelse(test = lack_prec$Value < 300 , yes = 1, no = 0)
         lack_prec <- data.frame(Year = lack_prec$Year, Value= lack_prec$con, Variable= "lack_prec")
         
         # 3. CDD: Drought spell: Maximum number of consecutive dry days (i.e. with precipitation < 1 mm day-1)
@@ -229,19 +232,19 @@ index_potato <- function(continent = "Oceania", ncores = 10){
         results <- data.frame(cellID = unique(X$cellID), rbind(prec_optimal, lack_prec, cdd, p_95))
         
       }
+      
+      
+      mylist[[i]] <- results
+      
+    })
+    tabla <- do.call(rbind, indexes_drought)
+    saveRDS(tabla, output)
+    cat(">>> Results saved successfully ...\n")
     
+    return(cat("Process done\n"))
     
-    return(results)
-    
-  }, mc.cores = ncores, mc.preschedule = F))
-  tabla <- do.call(rbind, indexes_drought)
-  saveRDS(tabla, output)
-  cat(">>> Results saved successfully ...\n")
+  } else {
+    cat(">>> Agroclimatic indices have been already calculated ...\n")
+  }
   
-  return(cat("Process done\n"))
-  
-} else {
-  cat(">>> Agroclimatic indices have been already calculated ...\n")
-}
-
 }

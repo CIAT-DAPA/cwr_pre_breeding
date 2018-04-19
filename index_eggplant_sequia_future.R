@@ -397,7 +397,6 @@
         names(totrain)[2] <- "Value"; totrain$Variable <- "TOTRAIN"
         
         # prec_optimal 
-        
         # 1.  350<prec<400
         
         prec_optimal <- totrain

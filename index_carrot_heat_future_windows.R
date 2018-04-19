@@ -39,7 +39,7 @@ if(OSys == "Linux"){
   }
 }; rm(OSys)
 
-CarrotIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp45" ,gcm= "gcm1"){
+CarrotIndicesFuture <- function(continent = "Europa", rcp = "rcp45" ,gcm= "gcm1"){
   output <- paste0(root, "/CWR_pre-breeding/Results/Carrot/_future/heat/",rcp,"/",gcm,"/Crop_index/carrot_crop_indices_", tolower(continent), ".rds")
   if(!file.exists(output)){
     
@@ -98,8 +98,21 @@ CarrotIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp45"
     
     test<- tmin[which(tmin$Duration =="Two years"), ]
     
+    
+    library(doSNOW)
+    library(foreach)
+    library(parallel)
+    library(doParallel)
+    
+    cores<- detectCores()
+    cl<- makeCluster(cores-18)
+    registerDoParallel(cl) 
+    
+    
     require(parallel)
-    system.time(indexes_been <- mclapply(1:nrow(tmax), function(i){  ### nrow(tmax)
+    system.time(indexes_drought <- foreach(i=1:nrow(tmin)) %dopar% {  ### nrow(tmax)
+      mylist <- list()
+      cat(paste0("Processed pixel:", i, "\n"))
       # Parameters
       duration <- tmax$Duration[i]
       start <- tmax$Planting[i]
@@ -397,10 +410,10 @@ CarrotIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp45"
         results<- data.frame(cellID= unique(Y$cellID), rbind(Texteme,days_tmin22,days_tmin24,calor22,calor24,optimo))
         
       }
-      return(results)
-    }, mc.cores = 20, mc.preschedule = F))
+      mylist[[i]] <- results
+    })
     
-    tabla <- do.call(rbind, indexes_been)
+    tabla <- do.call(rbind, indexes_drought)
     saveRDS(tabla, output)
     cat(">>> Results saved successfully ...\n")
     return(cat("Process done\n"))
@@ -410,3 +423,4 @@ CarrotIndicesFuture <- function(continent = "Europa", ncores = 15, rcp = "rcp45"
   }
   
 }
+system.time(CarrotIndicesFuture(continent = "Oceania", rcp = "rcp85" ,gcm= "gcm2"))
