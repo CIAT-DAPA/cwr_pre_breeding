@@ -1,8 +1,4 @@
-# CWR pre-breeding characterising testing environments: calculating general indices
-# Authors: B. Mora & H. Achicanoy
-# CIAT, 2018
 
-# Load packages
 suppressMessages(if(!require(raster)){install.packages('raster'); library(raster)} else {library(raster)})
 suppressMessages(if(!require(ncdf4)){install.packages('ncdf4'); library(ncdf4)} else {library(ncdf4)})
 suppressMessages(if(!require(maptools)){install.packages('maptools'); library(maptools)} else {library(maptools)})
@@ -39,15 +35,16 @@ if(OSys == "Linux"){
   }
 }; rm(OSys)
 
-index_lentil<- function(continent = "Oceania"){
-  
-  output <- paste0(root, "/CWR_pre-breeding/Results/Lentil/Index_drought/lentil_index_drought_", tolower(continent), ".rds")
+
+
+index_carrot_drought_future <- function(continent = "Europa", rcp = "rcp85" ,gcm= "gcm1"){
+  output <- paste0(root, "/CWR_pre-breeding/Results/Carrot/_future/drought/",rcp,"/",gcm,"/Crop_index/Carrot_index_drought_", tolower(continent), ".rds")
   if(!file.exists(output)){
     
     # Load climate data
-    cat(">>> Starting process for lentil in", continent, "continent\n\n")
+    cat(">>> Starting process for carrot drought in", continent, "continent\n\n")
     cat(">>> Loading climate data ...\n")
-    prec <- readRDS(paste0(root, '/CWR_pre-breeding/Input_data/_current_climate/chirps/prec_filtered_', tolower(continent), '.rds'))
+    prec <- readRDS(paste0(root, '/CWR_pre-breeding/Input_data/_future_climate/',rcp,'/',gcm ,'/chirps/prec_filtered_', tolower(continent), '.rds'))
     
     prec$bean_coordinates <- NULL
     
@@ -55,13 +52,12 @@ index_lentil<- function(continent = "Oceania"){
     cat(">>> Loading crop cycle data ...\n")
     
     # Planting dates
-    planting_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Pulses_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "planting day")
+    planting_rf_ggcmi <- raster::stack(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/carrot_planting.tif"))
     planting_rf_ggcmi <- planting_rf_ggcmi[[1]]
-    # Harversting dates
-    harvest_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/Pulses_rf_growing_season_dates_v1.25.nc4", sep = ""), varname = "harvest day")
-    harvest_rf_ggcmi <- harvest_rf_ggcmi[[1]]
-    harvest_rf_ggcmi <- harvest_rf_ggcmi[[1]]
     
+    # Harversting dates
+    harvest_rf_ggcmi <- raster::brick(paste0(root, "/CWR_pre-breeding/Input_data/GGCMI-data/carrot_harvest.tif"))
+    harvest_rf_ggcmi <- harvest_rf_ggcmi[[1]]
     
     
     # Extract important dates
@@ -72,12 +68,20 @@ index_lentil<- function(continent = "Oceania"){
     
     # Restricting study area to crop area
     cat(">>> Restricting study area to crop area ...\n")
-    crop_area  <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/_crop_presence/Lentil/database/area_base.rds"))
+    crop_area  <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/_crop_presence/Carrot/database/area_base.rds"))
     prec <- dplyr::filter(prec, prec$cellID %in% crop_area$cellID)
     prec <- prec[!is.na(prec$cellID),]
     
+    prec$Harvest[which(prec$Harvest == 0)] <- NA
+    prec$Planting[which(prec$Planting == 0)] <- NA
+    prec$Planting[which(prec$Harvest == -99)] <- NA
+    prec<- na.omit(prec)
+    prec$Harvest <- round(prec$Harvest)
+    prec$Planting <- round(prec$Planting)
+    
     
     test<- prec[which(prec$Duration =="Two years"), ]
+    
     library(doSNOW)
     library(foreach)
     library(parallel)
@@ -87,8 +91,9 @@ index_lentil<- function(continent = "Oceania"){
     cl<- makeCluster(cores-18)
     registerDoParallel(cl) 
     
-    system.time(indexes_drought <- foreach(i=1:nrow(prec)) %dopar% {  ### nrow(tmax)
-      mylist <- list()      
+    system.time(indexes_drought <- foreach(i=1:nrow(prec)) %dopar% { ### 
+      mylist <- list()
+      cat(paste0("Processed pixel:", i, "\n"))
       # Parameters
       duration <- prec$Duration[i]
       start <- prec$Planting[i]
@@ -110,6 +115,7 @@ index_lentil<- function(continent = "Oceania"){
         X <- X %>% group_by(Year) %>% dplyr::filter(Yday >= start & Yday <= end)
         
         # TOTRAIN: Total precipitation
+        
         totrain <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(TOTRAIN = sum(Value))
         totrain <- totrain %>% as.data.frame
         names(totrain)[2] <- "Value"; totrain$Variable <- "TOTRAIN"
@@ -120,7 +126,7 @@ index_lentil<- function(continent = "Oceania"){
         
         prec_optimal <- totrain
         prec_optimal$con <- NA
-        prec_optimal$con <- ifelse(prec_optimal$Value>350  && prec_optimal$Value < 550, yes = 1, no = 0)
+        prec_optimal$con <- ifelse(prec_optimal$Value> 300  && prec_optimal$Value < 400, yes = 1, no = 0)
         prec_optimal <- data.frame(Year = prec_optimal$Year, Value= prec_optimal$con, Variable= "prec_optimal")
         
         # 2.   lack_prec <  250 
@@ -128,7 +134,7 @@ index_lentil<- function(continent = "Oceania"){
         
         lack_prec <- totrain
         lack_prec$con <- NA
-        lack_prec$con <- ifelse(test = lack_prec$Value < 300 , yes = 1, no = 0)
+        lack_prec$con <- ifelse(test = lack_prec$Value < 250 , yes = 1, no = 0)
         lack_prec <- data.frame(Year = lack_prec$Year, Value= lack_prec$con, Variable= "lack_prec")
         
         # 3. CDD: Drought spell: Maximum number of consecutive dry days (i.e. with precipitation < 1 mm day-1)
@@ -191,6 +197,7 @@ index_lentil<- function(continent = "Oceania"){
         X <- na.omit(X)
         
         # TOTRAIN: Total precipitation
+        
         totrain <- X %>% dplyr::group_by(Year) %>% dplyr::arrange(Date) %>% summarise(TOTRAIN = sum(Value))
         totrain <- totrain %>% as.data.frame
         names(totrain)[2] <- "Value"; totrain$Variable <- "TOTRAIN"
@@ -201,7 +208,7 @@ index_lentil<- function(continent = "Oceania"){
         
         prec_optimal <- totrain
         prec_optimal$con <- NA
-        prec_optimal$con <- ifelse(prec_optimal$Value>350  && prec_optimal$Value < 550, yes = 1, no = 0)
+        prec_optimal$con <- ifelse(prec_optimal$Value>300  && prec_optimal$Value < 400, yes = 1, no = 0)
         prec_optimal <- data.frame(Year = prec_optimal$Year, Value= prec_optimal$con, Variable= "prec_optimal")
         
         # 2.   lack_prec <  250 
@@ -209,7 +216,7 @@ index_lentil<- function(continent = "Oceania"){
         
         lack_prec <- totrain
         lack_prec$con <- NA
-        lack_prec$con <- ifelse(test = lack_prec$Value < 300 , yes = 1, no = 0)
+        lack_prec$con <- ifelse(test = lack_prec$Value < 250 , yes = 1, no = 0)
         lack_prec <- data.frame(Year = lack_prec$Year, Value= lack_prec$con, Variable= "lack_prec")
         
         # 3. CDD: Drought spell: Maximum number of consecutive dry days (i.e. with precipitation < 1 mm day-1)
@@ -232,11 +239,10 @@ index_lentil<- function(continent = "Oceania"){
         results <- data.frame(cellID = unique(X$cellID), rbind(prec_optimal, lack_prec, cdd, p_95))
         
       }
-      
-      
-      mylist[[i]] <- results
-      
-    })
+      mylist[[i]] <- results 
+    } )
+    
+    stopCluster(cl)
     tabla <- do.call(rbind, indexes_drought)
     saveRDS(tabla, output)
     cat(">>> Results saved successfully ...\n")
@@ -248,3 +254,4 @@ index_lentil<- function(continent = "Oceania"){
   }
   
 }
+system.time(index_carrot_drought_future(continent = "Africa", rcp = "rcp85" ,gcm= "gcm4"))
