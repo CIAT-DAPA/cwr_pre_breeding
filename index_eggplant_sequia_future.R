@@ -31,7 +31,7 @@
   if(OSys == "Linux" ){
   index_eggplant_future <- function(continent = "Europa", rcp = "rcp45" ,gcm= "gcm1", ncores = 10 ){
   require(dplyr)
-  output <- paste0(root, "/CWR_pre-breeding/Results/Eggplant/_future/",rcp,"/",gcm,"/Crop_index/Potato_index_drought_", tolower(continent), ".rds")
+  output <- paste0(root, "/CWR_pre-breeding/Results/Eggplant/_future/",rcp,"/",gcm,"/Crop_index/Eggplant_index_drought_", tolower(continent), ".rds")
   if(!file.exists(output)){
     
     # Load climate data
@@ -66,7 +66,11 @@
     prec <- dplyr::filter(prec, prec$cellID %in% crop_area$cellID)
     prec <- prec[!is.na(prec$cellID),]
     
+    prec$Harvest[which(prec$Harvest == 0)] <- NA
+    prec$Planting[which(prec$Harvest == 0)] <- NA
     prec$Harvest[which(prec$Harvest == -99)] <- NA
+    prec$Planting[which(prec$Harvest == -99)] <- NA
+    
     prec<- na.omit(prec)
     prec$Harvest <- round(prec$Harvest)
     prec$Planting <- round(prec$Planting)
@@ -269,7 +273,11 @@
     prec <- dplyr::filter(prec, prec$cellID %in% crop_area$cellID)
     prec <- prec[!is.na(prec$cellID),]
     
+    prec$Harvest[which(prec$Harvest == 0)] <- NA
+    prec$Planting[which(prec$Harvest == 0)] <- NA
     prec$Harvest[which(prec$Harvest == -99)] <- NA
+    prec$Planting[which(prec$Harvest == -99)] <- NA
+    
     prec<- na.omit(prec)
     prec$Harvest <- round(prec$Harvest)
     prec$Planting <- round(prec$Planting)
