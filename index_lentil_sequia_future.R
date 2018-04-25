@@ -46,7 +46,7 @@ index_lentil_future<- function(continent = "Africa", rcp = "rcp85" ,gcm= "gcm4")
     # Load climate data
     cat(">>> Starting process for lentil in", continent, "continent\n\n")
     cat(">>> Loading climate data ...\n")
-    prec <- readRDS(paste0(root, '/CWR_pre-breeding/Input_data/_current_climate/chirps/prec_filtered_', tolower(continent), '.rds'))
+    prec <- readRDS(paste0(root, '/CWR_pre-breeding/Input_data/_future_climate/',rcp,'/',gcm ,'/chirps/prec_filtered_', tolower(continent), '.rds'))
     
     prec$bean_coordinates <- NULL
     
@@ -79,7 +79,7 @@ index_lentil_future<- function(continent = "Africa", rcp = "rcp85" ,gcm= "gcm4")
     prec$Planting[which(prec$Harvest == 0)] <- NA
     prec$Harvest[which(prec$Harvest == -99)] <- NA
     prec$Planting[which(prec$Harvest == -99)] <- NA
-    
+    na.omit(prec)
     
     test<- prec[which(prec$Duration =="Two years"), ]
     library(doSNOW)
