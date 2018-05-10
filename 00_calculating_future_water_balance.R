@@ -22,7 +22,7 @@ if(OSys == "Linux"){
     root <- "//dapadfs/Workspace_cluster_9"
     base <- readRDS(paste0(root, "/CWR_pre-breeding/Input_data/AgMerra_template.RDS"))
   }
-}; rm(OSys)
+}
 src <- paste0(root, "/CWR_pre-breeding/Scripts")
 
 calc_wat_bal <- function(continent = "Europa", gcm = "gcm1", ncores = 10){
@@ -100,50 +100,101 @@ calc_wat_bal <- function(continent = "Europa", gcm = "gcm1", ncores = 10){
   daysList <- Reduce(intersect, list(colnames(tmax[,-c(1:3)]), colnames(tmin[,-c(1:3)]),
                                      colnames(prec[,-c(1:3)]), colnames(srad[,-c(1:3)])))
   
-  watbalList <- parallel::mclapply(1:length(pixelList), FUN = function(j){
+  if(OSys == "Linux"){
     
-    if(!file.exists(paste0(root,
-                           "/CWR_pre-breeding/Input_data/_soils/Water_balance_future/rcp85/",
-                           gcm,
-                           "/",
-                           continent,
-                           "/cellID_",
-                           pixelList[j],
-                           ".rds"))){
+    watbalList <- parallel::mclapply(1:length(pixelList), FUN = function(j){
       
-      out_all <- soil_data[which(soil_data$cellID == pixelList[j]), c('cellID', 'lon', 'lat')]
-      out_all <- do.call("rbind", replicate(length(daysList), out_all, simplify = FALSE))
-      out_all$SRAD <- as.numeric(srad[which(srad$cellID == pixelList[j]), match(daysList, colnames(srad))])
-      out_all$TMIN <- as.numeric(tmin[which(tmin$cellID == pixelList[j]), match(daysList, colnames(tmin))])
-      out_all$TMAX <- as.numeric(tmax[which(tmax$cellID == pixelList[j]), match(daysList, colnames(tmax))])
-      out_all$RAIN <- as.numeric(prec[which(prec$cellID == pixelList[j]), match(daysList, colnames(prec))])
-      rownames(out_all) <- daysList
-      soilcp <- soil_data[which(soil_data$cellID == pixelList[j]), 'soilcp']
-      watbal_loc <- watbal_wrapper(out_all = out_all, soilcp = soilcp)
+      if(!file.exists(paste0(root,
+                             "/CWR_pre-breeding/Input_data/_soils/Water_balance_future/rcp85/",
+                             gcm,
+                             "/",
+                             continent,
+                             "/cellID_",
+                             pixelList[j],
+                             ".rds"))){
+        
+        out_all <- soil_data[which(soil_data$cellID == pixelList[j]), c('cellID', 'lon', 'lat')]
+        out_all <- do.call("rbind", replicate(length(daysList), out_all, simplify = FALSE))
+        out_all$SRAD <- as.numeric(srad[which(srad$cellID == pixelList[j]), match(daysList, colnames(srad))])
+        out_all$TMIN <- as.numeric(tmin[which(tmin$cellID == pixelList[j]), match(daysList, colnames(tmin))])
+        out_all$TMAX <- as.numeric(tmax[which(tmax$cellID == pixelList[j]), match(daysList, colnames(tmax))])
+        out_all$RAIN <- as.numeric(prec[which(prec$cellID == pixelList[j]), match(daysList, colnames(prec))])
+        rownames(out_all) <- daysList
+        soilcp <- soil_data[which(soil_data$cellID == pixelList[j]), 'soilcp']
+        watbal_loc <- watbal_wrapper(out_all = out_all, soilcp = soilcp)
+        
+        general_watbal <- tibble::tibble(cellID = pixelList[j])
+        general_watbal <- cbind(general_watbal, raster::xyFromCell(object = base, cell = pixelList[j])) %>% as.tibble()
+        colnames(general_watbal)[2:3] <- c("lon", "lat")
+        general_watbal$watbal <- watbal_loc %>% list
+        
+        saveRDS(object = general_watbal,
+                file = paste0(root,
+                              "/CWR_pre-breeding/Input_data/_soils/Water_balance_future/rcp85/",
+                              gcm,
+                              "/",
+                              continent,
+                              "/cellID_",
+                              pixelList[j],
+                              ".rds"))
+        
+      } else {
+        cat(paste0("Pixel: ", pixelList[j], " has been already processed.\n"))
+      }
       
-      general_watbal <- tibble::tibble(cellID = pixelList[j])
-      general_watbal <- cbind(general_watbal, raster::xyFromCell(object = base, cell = pixelList[j])) %>% as.tibble()
-      colnames(general_watbal)[2:3] <- c("lon", "lat")
-      general_watbal$watbal <- watbal_loc %>% list
+    }, mc.cores = ncores, mc.preschedule = F)
+    
+  } else {
+    if(OSys == "Windows"){
       
-      saveRDS(object = general_watbal,
-              file = paste0(root,
-                            "/CWR_pre-breeding/Input_data/_soils/Water_balance_future/rcp85/",
-                            gcm,
-                            "/",
-                            continent,
-                            "/cellID_",
-                            pixelList[j],
-                            ".rds"))
+      watbalList <- parallelsugar::mclapply(1:length(pixelList), FUN = function(j){
+        
+        if(!file.exists(paste0(root,
+                               "/CWR_pre-breeding/Input_data/_soils/Water_balance_future/rcp85/",
+                               gcm,
+                               "/",
+                               continent,
+                               "/cellID_",
+                               pixelList[j],
+                               ".rds"))){
+          
+          out_all <- soil_data[which(soil_data$cellID == pixelList[j]), c('cellID', 'lon', 'lat')]
+          out_all <- do.call("rbind", replicate(length(daysList), out_all, simplify = FALSE))
+          out_all$SRAD <- as.numeric(srad[which(srad$cellID == pixelList[j]), match(daysList, colnames(srad))])
+          out_all$TMIN <- as.numeric(tmin[which(tmin$cellID == pixelList[j]), match(daysList, colnames(tmin))])
+          out_all$TMAX <- as.numeric(tmax[which(tmax$cellID == pixelList[j]), match(daysList, colnames(tmax))])
+          out_all$RAIN <- as.numeric(prec[which(prec$cellID == pixelList[j]), match(daysList, colnames(prec))])
+          rownames(out_all) <- daysList
+          soilcp <- soil_data[which(soil_data$cellID == pixelList[j]), 'soilcp']
+          watbal_loc <- watbal_wrapper(out_all = out_all, soilcp = soilcp)
+          
+          general_watbal <- tibble::tibble(cellID = pixelList[j])
+          general_watbal <- cbind(general_watbal, raster::xyFromCell(object = base, cell = pixelList[j])) %>% as.tibble()
+          colnames(general_watbal)[2:3] <- c("lon", "lat")
+          general_watbal$watbal <- watbal_loc %>% list
+          
+          saveRDS(object = general_watbal,
+                  file = paste0(root,
+                                "/CWR_pre-breeding/Input_data/_soils/Water_balance_future/rcp85/",
+                                gcm,
+                                "/",
+                                continent,
+                                "/cellID_",
+                                pixelList[j],
+                                ".rds"))
+          
+        } else {
+          cat(paste0("Pixel: ", pixelList[j], " has been already processed.\n"))
+        }
+        
+      }, mc.cores = ncores, mc.preschedule = F)
       
-    } else {
-      cat(paste0("Pixel: ", pixelList[j], " has been already processed.\n"))
     }
-    
-  }, mc.cores = ncores, mc.preschedule = F)
+  }
   
   return(cat(">>> Process done\n"))
   
 }
 
-calc_wat_bal(continent = "Europa", gcm = "gcm1", ncores = 10)
+calc_wat_bal(continent = "Europa", gcm = "gcm1", ncores = 7) # Climate
+calc_wat_bal(continent = "Oceania", gcm = "gcm1", ncores = 10) # Africa
