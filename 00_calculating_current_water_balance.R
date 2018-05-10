@@ -2,6 +2,9 @@
 # Authors: B. Mora & H. Achicanoy
 # CIAT, 2018
 
+# R options
+g <- gc(reset = T); rm(list = ls()); options(warn = -1); options(scipen = 999)
+
 # Load packages
 suppressMessages(if(!require(raster)){install.packages('raster'); library(raster)} else {library(raster)})
 suppressMessages(if(!require(ncdf4)){install.packages('ncdf4'); library(ncdf4)} else {library(ncdf4)})
