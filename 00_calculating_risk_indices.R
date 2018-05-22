@@ -110,6 +110,34 @@ soilcap_calc <- function(x, minval, maxval) {
   return(soilcp)
 }
 
+#Vapour pressure deficit
+calc_vpd <- function(srad, tmin, tmax){
+  
+  #constants
+  albedo <- 0.2
+  vpd_cte <- 0.7
+  
+  #soil heat flux parameters
+  a_eslope=611.2
+  b_eslope=17.67
+  c_eslope=243.5
+  
+  #input parameters
+  tmean <- (tmin+tmax)/2
+  
+  #net radiation
+  rn = (1-albedo) * srad
+  
+  #soil heat flux
+  eslope=a_eslope*b_eslope*c_eslope/(tmean+c_eslope)^2*exp(b_eslope*tmean/(tmean+c_eslope))
+  
+  #estimate vpd
+  esat_min=0.61120*exp((17.67*tmin)/(tmin+243.5))
+  esat_max=0.61120*exp((17.67*tmax)/(tmax+243.5))
+  vpd=vpd_cte*(esat_max-esat_min) #kPa
+  return(vpd)
+  
+}
 
 #potential evapotranspiration
 peest <- function(srad, tmin, tmax) {
