@@ -219,11 +219,12 @@ map_summary <- function(current = T, Crop = Crop, stress = stress){
     period <- "Future"
   }
   
+  lyr <- lyr %>% raster::resample(x = ., y = hrvs_area, method = "ngb")
   tmp <- lyr %>% raster::as.data.frame(xy = T)
   tmp <- tmp[complete.cases(tmp),]
   
   hrvs_clcl <- hrvs_area[][raster::cellFromXY(object = hrvs_area, xy = tmp %>% dplyr::select(x, y))] %>% sum(na.rm = T)
-  ylds_clcl <- ylds_area[][raster::cellFromXY(object = ylds_area, xy = tmp %>% dplyr::select(x, y))] %>% sum(na.rm = T)
+  ylds_clcl <- ylds_area[][raster::cellFromXY(object = ylds_area, xy = tmp %>% dplyr::select(x, y))] %>% mean(na.rm = T)
   prdc_clcl <- prdc_area[][raster::cellFromXY(object = prdc_area, xy = tmp %>% dplyr::select(x, y))] %>% sum(na.rm = T)
   
   data.frame(Crop = Crop,
@@ -323,7 +324,6 @@ write.csv(min_ftr_dist(all_gcm = T, f_path = f_path, gcm_path = NULL), file = pa
 Crop     <- "Sunflower"
 stress   <- "Heat"
 c_path   <- paste0(root, "/CWR_pre-breeding/Results/Sunflower/Crop_indices/dist_levels_high_medium_low_indian_narkhaoda.rds")
-# f_path   <- paste0(root, "/CWR_pre-breeding/Results/Bean/_future/rcp85/gcm5/Crop_index")
 f_path   <- paste0(root, "/CWR_pre-breeding/Results/Sunflower/_future/rcp85")
 shp_path <- paste0(root, "/Sustainable_Food_System/SFS_indicators/Input_data/world_shape/all_countries_edited.shp")
 c_areas  <- paste0(root, "/CWR_pre-breeding/Input_data/_crop_presence/Sunflower/database/sunflower_monfreda.nc")
